@@ -1426,7 +1426,7 @@ const PLAYER_TEMPLATES = [
 ];
 
 // IPL 10 City Teams with colors
-const PL_TEAMS = [
+const IIPL_TEAMS = [
   { id: "mumbai", name: "Mumbai", fullName: "Mumbai Champions", primaryColor: "#004BA0", secondaryColor: "#D1AB3E", shortCode: "MUM" },
   { id: "chennai", name: "Chennai", fullName: "Chennai Super Kings", primaryColor: "#F9CD05", secondaryColor: "#1D3557", shortCode: "CHE" },
   { id: "bengaluru", name: "Bengaluru", fullName: "Bengaluru Challengers", primaryColor: "#DA1818", secondaryColor: "#000000", shortCode: "BLR" },
@@ -1441,5 +1441,5 @@ const PL_TEAMS = [
 
 module.exports = {
   PLAYER_TEMPLATES,
-  PL_TEAMS
+  IPL_TEAMS
 };

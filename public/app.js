@@ -997,3 +997,20 @@ socket.on('season_completed', ({ simulationResult, roomState }) => {
   gameState.roomData = roomState;
   renderSeasonResults(simulationResult, roomState);
 });
+
+
+function renderUpcomingPlayers(upcoming) {
+  const container = document.getElementById('upcomingList');
+  if (!container) return;
+  if (!upcoming || upcoming.length === 0) {
+    container.innerHTML = '<div class="empty-log">No upcoming players</div>';
+    return;
+  }
+  
+  container.innerHTML = upcoming.map((p, i) => `
+    <div class="upcoming-item">
+      <div class="upcoming-name">${i+1}. ${p.name} <span class="upcoming-ovr">[${p.ovr}]</span></div>
+      <div class="upcoming-meta">${p.role} • ₹${p.basePrice}Cr</div>
+    </div>
+  `).join('');
+}

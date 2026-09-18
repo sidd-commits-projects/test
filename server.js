@@ -506,6 +506,7 @@ function getSanitizedRoomState(room) {
     status: room.status,
     currentPlayerIndex: room.currentPlayerIndex,
     currentPlayer: room.playersPool[room.currentPlayerIndex] || null,
+    upcomingPlayers: room.playersPool.slice(room.currentPlayerIndex + 1, room.currentPlayerIndex + 11).map(p => ({id: p.id, name: p.name, role: p.role, basePrice: p.basePrice, ovr: p.ovr})),
     totalPlayers: room.playersPool.length,
     teams: room.teams,
     timeLeft: room.timeLeft,
