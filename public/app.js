@@ -231,7 +231,7 @@ function setupEventListeners() {
   });
 
   forceNextBtn.addEventListener('click', () => {
-    socket.emit('force_next_player', { roomCode: gameState.roomCode });
+    socket.emit('force_next_player', { roomCode: gameState.roomCode, teamId: gameState.selectedTeamId });
   });
 
   // Playing XI Controls
@@ -444,9 +444,9 @@ function updateBidConsole(player, roomState) {
   } else if (myTeam && myTeam.purse < nextBid) {
     btnPlaceBid.disabled = true;
     bidWarningText.textContent = "Insufficient purse to bid!";
-  } else if (myTeam && myTeam.squad.length >= 18) {
+  } else if (myTeam && myTeam.squad.length >= 15) {
     btnPlaceBid.disabled = true;
-    bidWarningText.textContent = "Squad limit reached (18/18)!";
+    bidWarningText.textContent = "Squad limit reached (15/15)!";
   } else {
     btnPlaceBid.disabled = false;
     bidWarningText.textContent = "";
@@ -545,6 +545,8 @@ function renderXISquadCards(squad) {
   const xiSlotsPane = document.getElementById('xiSlotsPane');
   const xiBenchPane = document.getElementById('xiBenchPane');
   
+  if (!xiSlotsPane || !xiBenchPane) return; // Prevent crashes if DOM not loaded yet
+
   // Highlight helper for dragging
   const highlightSlots = (p) => {
     document.querySelectorAll('.xi-slot-row').forEach(row => {
@@ -575,173 +577,156 @@ function renderXISquadCards(squad) {
     });
   };
 
-  if(xiSlotsPane) {
-    xiSlotsPane.innerHTML = '';
-    for(let i = 0; i < 11; i++) {
-      const slotIndex = i;
-      const row = document.createElement('div');
-      row.className = 'xi-slot-row';
-      row.setAttribute('data-slot', slotIndex);
-      
-      const num = document.createElement('div');
-      num.className = 'xi-slot-num';
-      num.textContent = (slotIndex + 1);
-      
-      const display = document.createElement('div');
-      display.className = 'xi-slot-player-display';
-      
-      const currentPlayerId = gameState.playingXI[slotIndex];
-      if (currentPlayerId) {
-        const p = squad.find(x => x.id === currentPlayerId);
-        display.draggable = true;
-        
-        let prefPos = p.idealBattingPos ? ` (Ideal: ${p.idealBattingPos.join(',')})` : '';
-        let phase = p.idealBowlingOvers && p.idealBowlingOvers.length ? ` [${p.idealBowlingOvers.join(',')}]` : '';
-        
-        display.innerHTML = `<span>${p.name} (${p.role})${prefPos}${phase} ${p.isOverseas ? '✈️' : ''} OVR:${p.ovr}</span>
-                             <button class="remove-player-btn" data-slot="${slotIndex}">X</button>`;
-                             
-        display.addEventListener('dragstart', (e) => {
-          draggedPlayerId = p.id;
-          draggedSourceSlot = slotIndex;
-          display.classList.add('dragging');
-          highlightSlots(p);
-        });
-        
-        display.addEventListener('dragend', () => {
-          display.classList.remove('dragging');
-          draggedPlayerId = null;
-          draggedSourceSlot = null;
-          removeHighlights();
-        });
-      } else {
-        display.innerHTML = `<span class="xi-slot-empty">Drag player here...</span>`;
-      }
-
-      // Drag and Drop Events for Slot
-      row.addEventListener('dragover', (e) => {
-        e.preventDefault(); // allow drop
-      });
-      row.addEventListener('dragenter', (e) => {
-        e.preventDefault();
-        row.classList.add('drag-over');
-      });
-      row.addEventListener('dragleave', () => {
-        row.classList.remove('drag-over');
-      });
-      row.addEventListener('drop', (e) => {
-        e.preventDefault();
-        row.classList.remove('drag-over');
-        if (draggedPlayerId) {
-          // If moving from another slot
-          if (draggedSourceSlot !== null) {
-            // Swap logic
-            const currentOccupant = gameState.playingXI[slotIndex];
-            gameState.playingXI[draggedSourceSlot] = currentOccupant; 
-          } else {
-            // New from bench. If this player is already in XI elsewhere, remove from old slot
-            const existingSlot = gameState.playingXI.indexOf(draggedPlayerId);
-            if (existingSlot !== -1) {
-              gameState.playingXI[existingSlot] = null;
-            }
-          }
-          gameState.playingXI[slotIndex] = draggedPlayerId;
-          
-          draggedPlayerId = null;
-          draggedSourceSlot = null;
-          removeHighlights();
-          
-          renderXISquadCards(squad);
-          updateXIValidation(squad);
-        }
-      });
-      
-      row.appendChild(num);
-      row.appendChild(display);
-      xiSlotsPane.appendChild(row);
-    }
-
-    document.querySelectorAll('.remove-player-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const slot = e.target.getAttribute('data-slot');
-        gameState.playingXI[slot] = null;
-        renderXISquadCards(squad);
-        updateXIValidation(squad);
-      });
-    });
-  }
-  
-  if(xiBenchPane) {
-    xiBenchPane.innerHTML = '';
+  xiSlotsPane.innerHTML = '';
+  for(let i = 0; i < 11; i++) {
+    const slotIndex = i;
+    const row = document.createElement('div');
+    row.className = 'xi-slot-row';
+    row.setAttribute('data-slot', slotIndex);
     
-    // Add dragover/drop to bench pane to remove from XI
-    xiBenchPane.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      xiBenchPane.classList.add('drag-over-bench');
-    });
-    xiBenchPane.addEventListener('dragleave', () => {
-      xiBenchPane.classList.remove('drag-over-bench');
-    });
-    xiBenchPane.addEventListener('drop', (e) => {
-      e.preventDefault();
-      xiBenchPane.classList.remove('drag-over-bench');
-      if (draggedPlayerId && draggedSourceSlot !== null) {
-        // Player was dragged from a slot back to bench
-        gameState.playingXI[draggedSourceSlot] = null;
+    const num = document.createElement('div');
+    num.className = 'xi-slot-num';
+    num.textContent = (slotIndex + 1);
+    
+    const display = document.createElement('div');
+    display.className = 'xi-slot-player-display';
+    
+    const currentPlayerId = gameState.playingXI[slotIndex];
+    if (currentPlayerId) {
+      const p = squad.find(x => x.id === currentPlayerId);
+      display.draggable = true;
+      
+      let prefPos = p.idealBattingPos && p.idealBattingPos.length ? ` (Ideal: ${p.idealBattingPos.join(',')})` : '';
+      let phase = p.idealBowlingOvers && p.idealBowlingOvers.length ? ` [${p.idealBowlingOvers.join(',')}]` : '';
+      
+      display.innerHTML = `<span>${p.name} (${p.role})${prefPos}${phase} ${p.isOverseas ? '✈️' : ''} OVR:${p.ovr}</span>
+                           <button class="remove-player-btn" data-slot="${slotIndex}">X</button>`;
+                           
+      display.addEventListener('dragstart', (e) => {
+        draggedPlayerId = p.id;
+        draggedSourceSlot = slotIndex;
+        display.classList.add('dragging');
+        highlightSlots(p);
+      });
+      
+      display.addEventListener('dragend', () => {
+        display.classList.remove('dragging');
         draggedPlayerId = null;
         draggedSourceSlot = null;
         removeHighlights();
+      });
+    } else {
+      display.innerHTML = `<span class="xi-slot-empty">Drag player here...</span>`;
+    }
+
+    row.addEventListener('dragover', (e) => e.preventDefault());
+    row.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      if (draggedPlayerId) {
+        if (draggedSourceSlot !== null) {
+          const currentOccupant = gameState.playingXI[slotIndex];
+          gameState.playingXI[draggedSourceSlot] = currentOccupant; 
+        } else {
+          const existingSlot = gameState.playingXI.indexOf(draggedPlayerId);
+          if (existingSlot !== -1) gameState.playingXI[existingSlot] = null;
+        }
+        gameState.playingXI[slotIndex] = draggedPlayerId;
+        
+        draggedPlayerId = null;
+        draggedSourceSlot = null;
+        removeHighlights();
+        
         renderXISquadCards(squad);
         updateXIValidation(squad);
       }
     });
     
-    // Header for coverage stats
-    const coverageDiv = document.createElement('div');
-    coverageDiv.className = 'coverage-stats';
-    const top4 = squad.filter(p => p.idealBattingPos && (p.idealBattingPos.includes(1) || p.idealBattingPos.includes(2) || p.idealBattingPos.includes(3) || p.idealBattingPos.includes(4))).length;
-    const finishers = squad.filter(p => p.idealBattingPos && (p.idealBattingPos.includes(5) || p.idealBattingPos.includes(6) || p.idealBattingPos.includes(7))).length;
-    const ppBowlers = squad.filter(p => p.idealBowlingOvers && p.idealBowlingOvers.includes('1-6')).length;
-    const deathBowlers = squad.filter(p => p.idealBowlingOvers && p.idealBowlingOvers.includes('16-20')).length;
-    
-    coverageDiv.innerHTML = `<div style="font-size:12px; margin-bottom:10px; padding:8px; background:rgba(0,0,0,0.4); border-radius:4px;">
-      <strong style="color:var(--primary-gold)">Squad Coverage:</strong><br>
-      Top Order (1-4): ${top4} | Finishers (5-7): ${finishers}<br>
-      Powerplay Bowlers: ${ppBowlers} | Death Bowlers: ${deathBowlers}
-    </div>`;
-    xiBenchPane.appendChild(coverageDiv);
-
-    squad.forEach(p => {
-      if(!gameState.playingXI.includes(p.id)) {
-        const benchDiv = document.createElement('div');
-        benchDiv.className = 'xi-bench-player';
-        benchDiv.draggable = true;
-        
-        let prefPos = p.idealBattingPos ? ` (${p.idealBattingPos.join(',')})` : '';
-        let phase = p.idealBowlingOvers && p.idealBowlingOvers.length ? ` [${p.idealBowlingOvers.join(',')}]` : '';
-        
-        benchDiv.innerHTML = `
-            <span>${p.name} ${p.isOverseas ? '✈️' : ''} ${p.trait ? '⭐' : ''}</span>
-            <span class="bench-role">${p.role}${prefPos}${phase} OVR:${p.ovr}</span>
-        `;
-        
-        benchDiv.addEventListener('dragstart', (e) => {
-          draggedPlayerId = p.id;
-          draggedSourceSlot = null;
-          benchDiv.classList.add('dragging');
-          highlightSlots(p);
-        });
-        
-        benchDiv.addEventListener('dragend', () => {
-          benchDiv.classList.remove('dragging');
-          draggedPlayerId = null;
-          removeHighlights();
-        });
-
-        xiBenchPane.appendChild(benchDiv);
-      }
-    });
+    row.appendChild(num);
+    row.appendChild(display);
+    xiSlotsPane.appendChild(row);
   }
+
+  document.querySelectorAll('.remove-player-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const slot = e.target.getAttribute('data-slot');
+      gameState.playingXI[slot] = null;
+      renderXISquadCards(squad);
+      updateXIValidation(squad);
+    });
+  });
+  
+  xiBenchPane.innerHTML = '';
+  
+  xiBenchPane.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    xiBenchPane.classList.add('drag-over-bench');
+  });
+  xiBenchPane.addEventListener('dragleave', () => {
+    xiBenchPane.classList.remove('drag-over-bench');
+  });
+  xiBenchPane.addEventListener('drop', (e) => {
+    e.preventDefault();
+    xiBenchPane.classList.remove('drag-over-bench');
+    if (draggedPlayerId && draggedSourceSlot !== null) {
+      gameState.playingXI[draggedSourceSlot] = null;
+      draggedPlayerId = null;
+      draggedSourceSlot = null;
+      removeHighlights();
+      renderXISquadCards(squad);
+      updateXIValidation(squad);
+    }
+  });
+  
+  const coverageDiv = document.createElement('div');
+  coverageDiv.className = 'coverage-stats';
+  const top4 = squad.filter(p => p.idealBattingPos && (p.idealBattingPos.includes(1) || p.idealBattingPos.includes(2) || p.idealBattingPos.includes(3) || p.idealBattingPos.includes(4))).length;
+  const finishers = squad.filter(p => p.idealBattingPos && (p.idealBattingPos.includes(5) || p.idealBattingPos.includes(6) || p.idealBattingPos.includes(7))).length;
+  const ppBowlers = squad.filter(p => p.idealBowlingOvers && p.idealBowlingOvers.includes('1-6')).length;
+  const deathBowlers = squad.filter(p => p.idealBowlingOvers && p.idealBowlingOvers.includes('16-20')).length;
+  
+  coverageDiv.innerHTML = `<div style="font-size:12px; margin-bottom:10px; padding:8px; background:rgba(0,0,0,0.4); border-radius:4px;">
+    <strong style="color:var(--primary-gold)">Squad Coverage:</strong><br>
+    Top Order (1-4): ${top4} | Finishers (5-7): ${finishers}<br>
+    Powerplay Bowlers: ${ppBowlers} | Death Bowlers: ${deathBowlers}
+  </div>`;
+  xiBenchPane.appendChild(coverageDiv);
+
+  squad.forEach(p => {
+    if(!gameState.playingXI.includes(p.id)) {
+      const benchDiv = document.createElement('div');
+      benchDiv.className = 'xi-bench-player';
+      benchDiv.draggable = true;
+      
+      let prefPos = p.idealBattingPos && p.idealBattingPos.length ? ` (${p.idealBattingPos.join(',')})` : '';
+      let phase = p.idealBowlingOvers && p.idealBowlingOvers.length ? ` [${p.idealBowlingOvers.join(',')}]` : '';
+      
+      benchDiv.innerHTML = `
+          <span>${p.name} ${p.isOverseas ? '✈️' : ''} ${p.trait ? '⭐' : ''}</span>
+          <span class="bench-role">${p.role}${prefPos}${phase} OVR:${p.ovr}</span>
+      `;
+      
+      benchDiv.addEventListener('dragstart', (e) => {
+        draggedPlayerId = p.id;
+        draggedSourceSlot = null;
+        benchDiv.classList.add('dragging');
+        highlightSlots(p);
+      });
+      
+      benchDiv.addEventListener('dragend', () => {
+        benchDiv.classList.remove('dragging');
+        draggedPlayerId = null;
+        removeHighlights();
+      });
+
+      xiBenchPane.appendChild(benchDiv);
+    }
+  });
 }
 
 function autoSelectMyXI() {
@@ -805,7 +790,7 @@ function updateXIValidation(squad) {
 }
 
 function submitMyPlayingXI() {
-  const playerIds = Array.from(gameState.selectedXIIds);
+  const playerIds = gameState.playingXI.filter(id => id !== null);
   btnLockPlayingXI.disabled = true;
   btnLockPlayingXI.textContent = "WAITING FOR SIMULATION...";
 
@@ -936,6 +921,7 @@ socket.on('room_updated', (roomState) => {
   renderLobbyTeams(roomState.teams);
   if (roomState.status === 'auction') {
     renderAuctionStage(roomState.currentPlayer, roomState);
+    if (typeof renderUpcomingPlayers === 'function') renderUpcomingPlayers(roomState.upcomingPlayers);
   }
 });
 
@@ -943,6 +929,11 @@ socket.on('player_announced', ({ player, announcement, roomState }) => {
   gameState.roomData = roomState;
   renderAuctionStage(player, roomState);
   addLog(announcement, 'normal');
+  if (typeof renderUpcomingPlayers === 'function') renderUpcomingPlayers(roomState.upcomingPlayers);
+  
+  // Reset force next button
+  forceNextBtn.textContent = '⏩ Fast-Forward Hammer';
+  forceNextBtn.disabled = false;
 });
 
 socket.on('timer_tick', ({ timeLeft, currentBid, currentBidder, currentBidderName }) => {
@@ -1014,3 +1005,10 @@ function renderUpcomingPlayers(upcoming) {
     </div>
   `).join('');
 }
+
+socket.on('fast_forward_vote', ({ votes, needed, voterTeamId }) => {
+  forceNextBtn.textContent = `⏩ Skip (${votes}/${needed} voted)`;
+  if (voterTeamId === gameState.selectedTeamId) {
+    forceNextBtn.disabled = true;
+  }
+});

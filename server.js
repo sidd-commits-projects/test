@@ -27,7 +27,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Store rooms in memory
 const rooms = {};
 
 function generateRoomCode() {
@@ -70,20 +69,19 @@ io.on('connection', (socket) => {
       const roomCode = generateRoomCode();
       const teams = initializeTeams();
 
-      // Assign host team
       if (teams[teamId]) {
         teams[teamId].owner = userName;
         teams[teamId].socketId = socket.id;
         teams[teamId].isHuman = true;
       }
 
-      const playerPool = generatePlayerPool(60);
+      const playerPool = generatePlayerPool(150);
 
       rooms[roomCode] = {
         roomCode,
         isComputerMode: !!isComputerMode,
         intervalSeconds: parseInt(intervalSeconds, 10) || 10,
-        status: 'lobby', // 'lobby' | 'auction' | 'xi_selection' | 'season_simulated'
+        status: 'lobby',
         playersPool: playerPool,
         currentPlayerIndex: -1,
         teams,
@@ -91,6 +89,7 @@ io.on('connection', (socket) => {
         timeLeft: 0,
         logs: [`Room created by ${userName} (${teams[teamId]?.name}).`],
         simulationResult: null,
+        fastForwardVotes: new Set(),
         sockets: {
           [socket.id]: { userName, teamId, isHost: true }
         }
@@ -120,20 +119,16 @@ io.on('connection', (socket) => {
       if (!room) {
         return callback({ success: false, message: "Room not found! Check room code." });
       }
-
       if (room.status !== 'lobby') {
         return callback({ success: false, message: "Auction already started in this room!" });
       }
-
       if (room.teams[teamId] && room.teams[teamId].isHuman) {
         return callback({ success: false, message: `${room.teams[teamId].name} is already chosen by ${room.teams[teamId].owner}!` });
       }
-
       if (!room.teams[teamId]) {
         return callback({ success: false, message: "Invalid city team selected." });
       }
 
-      // Claim team
       room.teams[teamId].owner = userName;
       room.teams[teamId].socketId = socket.id;
       room.teams[teamId].isHuman = true;
@@ -157,12 +152,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Start Auction (Any human players keep their teams; all other remaining 8 or 9 teams are AI bots!)
+  // Start Auction
   socket.on('start_auction', ({ roomCode }, callback) => {
     const room = rooms[roomCode];
     if (!room) return callback?.({ success: false, message: "Room not found" });
 
-    // Ensure all unselected teams remain AI computers
     Object.keys(room.teams).forEach(tId => {
       if (!room.teams[tId].isHuman) {
         room.teams[tId].owner = `${room.teams[tId].name} AI`;
@@ -209,14 +203,13 @@ io.on('connection', (socket) => {
       return callback?.({ success: false, message: check.reason });
     }
 
-    // Accept bid
     player.currentBid = nextBid;
     player.currentBidder = team.id;
     player.currentBidderName = team.name;
 
     room.timeLeft = Math.max(room.timeLeft, Math.min(room.intervalSeconds, 7));
 
-    const bidLog = `${team.name} bids ₹${nextBid.toFixed(2)} Cr for ${player.name}!`;
+    const bidLog = `${team.name} bids \u20B9${nextBid.toFixed(2)} Cr for ${player.name}!`;
     room.logs.push(bidLog);
 
     io.to(roomCode).emit('bid_placed', {
@@ -229,16 +222,44 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback({ success: true, nextBid });
   });
 
-  // Fast-Forward / Skip to next player (Host capability)
-  socket.on('force_next_player', ({ roomCode }, callback) => {
+  // Fast-Forward — multiplayer requires consensus
+  socket.on('force_next_player', ({ roomCode, teamId }, callback) => {
     const room = rooms[roomCode];
     if (!room || room.status !== 'auction') return callback?.({ success: false });
-    if (room.timer) clearInterval(room.timer);
-    finalizeCurrentPlayer(room);
-    if (typeof callback === 'function') callback({ success: true });
+
+    // Solo mode: instant skip
+    if (room.isComputerMode) {
+      if (room.timer) clearInterval(room.timer);
+      finalizeCurrentPlayer(room);
+      if (typeof callback === 'function') callback({ success: true });
+      return;
+    }
+
+    // Multiplayer: need all humans to vote
+    if (teamId) {
+      room.fastForwardVotes.add(teamId);
+    }
+
+    const humanTeams = Object.values(room.teams).filter(t => t.isHuman);
+    const totalHumans = humanTeams.length;
+    const currentVotes = room.fastForwardVotes.size;
+
+    io.to(roomCode).emit('fast_forward_vote', {
+      votes: currentVotes,
+      needed: totalHumans,
+      voterTeamId: teamId
+    });
+
+    if (currentVotes >= totalHumans) {
+      room.fastForwardVotes.clear();
+      if (room.timer) clearInterval(room.timer);
+      finalizeCurrentPlayer(room);
+    }
+
+    if (typeof callback === 'function') callback({ success: true, votes: currentVotes, needed: totalHumans });
   });
 
-  // Submit Playing XI by a human player
+  // Submit Playing XI
   socket.on('submit_playing_xi', ({ roomCode, teamId, playerIds }, callback) => {
     const room = rooms[roomCode];
     if (!room) return callback?.({ success: false, message: "Room not found" });
@@ -246,10 +267,8 @@ io.on('connection', (socket) => {
     const team = room.teams[teamId];
     if (!team) return callback?.({ success: false, message: "Team not found" });
 
-    // Reconstruct XI objects from playerIds in squad
     const chosenPlayers = team.squad.filter(p => playerIds.includes(p.id));
 
-    // Validate XI with mandatory Wicketkeeper and max 4 overseas
     const check = validatePlayingXI(chosenPlayers);
     if (!check.valid) {
       return callback?.({ success: false, message: check.reason });
@@ -266,13 +285,12 @@ io.on('connection', (socket) => {
       roomState: getSanitizedRoomState(room)
     });
 
-    // Check if all human teams have submitted their XI
     checkAllHumansReadyAndSimulate(room);
 
     if (typeof callback === 'function') callback({ success: true });
   });
 
-  // Force Start Simulation (Host can trigger without waiting)
+  // Force Start Simulation
   socket.on('force_start_simulation', ({ roomCode }, callback) => {
     const room = rooms[roomCode];
     if (!room) return callback?.({ success: false });
@@ -291,6 +309,7 @@ function nextPlayer(roomCode) {
   if (!room) return;
 
   room.currentPlayerIndex++;
+  room.fastForwardVotes = new Set(); // reset votes for new player
 
   if (room.currentPlayerIndex >= room.playersPool.length) {
     proceedToXISelection(room);
@@ -305,7 +324,7 @@ function nextPlayer(roomCode) {
 
   room.timeLeft = room.intervalSeconds;
 
-  const announcement = `📢 Up for bidding: ${player.name} (${player.role}, ${player.country}) - Base Price: ₹${player.basePrice} Cr! [Trait: ${player.trait}]`;
+  const announcement = `\uD83D\uDCE2 Up for bidding: ${player.name} (${player.role}, ${player.country}) - Base Price: \u20B9${player.basePrice} Cr! [Trait: ${player.trait}]`;
   room.logs.push(announcement);
 
   io.to(roomCode).emit('player_announced', {
@@ -318,7 +337,6 @@ function nextPlayer(roomCode) {
 
   room.timer = setInterval(() => {
     room.timeLeft--;
-
     evaluateAiBids(room);
 
     io.to(roomCode).emit('timer_tick', {
@@ -339,7 +357,7 @@ function evaluateAiBids(room) {
   const player = room.playersPool[room.currentPlayerIndex];
   if (!player || player.status !== 'bidding') return;
 
-  const botTeams = Object.values(room.teams).filter(t => (!t.isHuman || silent) && t.id !== player.currentBidder);
+  const botTeams = Object.values(room.teams).filter(t => !t.isHuman && t.id !== player.currentBidder);
   if (botTeams.length === 0) return;
 
   let nextAmount = player.currentBid === 0 ? player.basePrice : +(player.currentBid + getNextBidIncrement(player.currentBid)).toFixed(2);
@@ -355,7 +373,7 @@ function evaluateAiBids(room) {
 
       room.timeLeft = Math.max(room.timeLeft, Math.min(room.intervalSeconds, 6));
 
-      const bidLog = `${chosenBot.name} (AI) bids ₹${nextAmount.toFixed(2)} Cr!`;
+      const bidLog = `${chosenBot.name} (AI) bids \u20B9${nextAmount.toFixed(2)} Cr!`;
       room.logs.push(bidLog);
 
       io.to(room.roomCode).emit('bid_placed', {
@@ -391,10 +409,12 @@ function finalizeCurrentPlayer(room) {
         bowl: player.bowl,
         ovr: player.ovr,
         trait: player.trait,
-        soldPrice: player.soldPrice
+        soldPrice: player.soldPrice,
+        idealBattingPos: player.idealBattingPos || [],
+        idealBowlingOvers: player.idealBowlingOvers || []
       });
 
-      const hammerLog = `🔨 SOLD! ${player.name} sold to ${winnerTeam.name} for ₹${player.soldPrice.toFixed(2)} Cr!`;
+      const hammerLog = `\uD83D\uDD28 SOLD! ${player.name} sold to ${winnerTeam.name} for \u20B9${player.soldPrice.toFixed(2)} Cr!`;
       room.logs.push(hammerLog);
       io.to(room.roomCode).emit('player_sold', {
         player,
@@ -405,7 +425,7 @@ function finalizeCurrentPlayer(room) {
     }
   } else {
     player.status = 'unsold';
-    const unsoldLog = `❌ UNSOLD! No bids received for ${player.name}.`;
+    const unsoldLog = `\u274C UNSOLD! No bids received for ${player.name}.`;
     room.logs.push(unsoldLog);
     io.to(room.roomCode).emit('player_unsold', {
       player,
@@ -422,31 +442,27 @@ function finalizeCurrentPlayer(room) {
   }
 }
 
-// Proceed to Playing XI Selection screen once auction finishes
 function proceedToXISelection(room) {
   if (room.timer) clearInterval(room.timer);
   room.status = 'xi_selection';
 
-  // Ensure every squad has at least 11 players and at least 1 Wicketkeeper!
   Object.values(room.teams).forEach(team => {
-    // Check if team has a wicketkeeper; if not, add one
     const hasWK = team.squad.some(p => p.role === "Wicketkeeper");
     if (!hasWK) {
       team.squad.push({
         id: `rookie_wk_${team.id}`,
-        name: `Academy Wicketkeeper`,
+        name: "Academy Wicketkeeper",
         country: "IND",
         role: "Wicketkeeper",
         isOverseas: false,
-        bat: 70,
-        bowl: 20,
-        ovr: 72,
+        bat: 70, bowl: 20, ovr: 72,
         trait: "Lightning Gloves",
-        soldPrice: 0.20
+        soldPrice: 0.20,
+        idealBattingPos: [5, 6, 7],
+        idealBowlingOvers: []
       });
     }
 
-    // Fill remaining squad up to 11 if needed
     while (team.squad.length < 11) {
       const rookieNum = team.squad.length + 1;
       team.squad.push({
@@ -455,26 +471,24 @@ function proceedToXISelection(room) {
         country: "IND",
         role: rookieNum % 2 === 0 ? "Fast Bowler" : "Batsman",
         isOverseas: false,
-        bat: 65,
-        bowl: 65,
-        ovr: 65,
+        bat: 65, bowl: 65, ovr: 65,
         trait: "Emerging Player",
-        soldPrice: 0.20
+        soldPrice: 0.20,
+        idealBattingPos: [],
+        idealBowlingOvers: rookieNum % 2 === 0 ? ["7-15"] : []
       });
     }
 
-    // Pre-populate default best XI (ensuring 1 WK and max 4 overseas)
     team.customPlayingXI = autoSelectPlayingXI(team.squad);
-    team.xiReady = !team.isHuman; // Bots are immediately ready
+    team.xiReady = !team.isHuman;
   });
 
-  room.logs.push("🎉 AUCTION CONCLUDED! Managers are now selecting their Playing XI (Mandatory 1 Wicketkeeper, Max 4 Overseas).");
+  room.logs.push("\uD83C\uDF89 AUCTION CONCLUDED! Managers are now selecting their Playing XI.");
 
   io.to(room.roomCode).emit('start_xi_selection', {
     roomState: getSanitizedRoomState(room)
   });
 
-  // If all managers are bots, or if human chooses to simulate immediately
   checkAllHumansReadyAndSimulate(room);
 }
 
@@ -487,7 +501,7 @@ function checkAllHumansReadyAndSimulate(room) {
 
 function runSeasonSimulation(room) {
   room.status = 'season_simulated';
-  room.logs.push("🏟️ All Playing XIs confirmed! Running full IPL Season Simulation...");
+  room.logs.push("\uD83C\uDFDF\uFE0F All Playing XIs confirmed! Running full IPL Season Simulation...");
 
   const simResult = simulateSeason(Object.values(room.teams));
   room.simulationResult = simResult;
@@ -499,6 +513,10 @@ function runSeasonSimulation(room) {
 }
 
 function getSanitizedRoomState(room) {
+  const soldPlayers = room.playersPool
+    .filter(p => p.status === 'sold')
+    .map(p => ({ id: p.id, name: p.name, role: p.role, ovr: p.ovr, soldTo: p.soldTo, soldPrice: p.soldPrice }));
+
   return {
     roomCode: room.roomCode,
     isComputerMode: room.isComputerMode,
@@ -506,7 +524,11 @@ function getSanitizedRoomState(room) {
     status: room.status,
     currentPlayerIndex: room.currentPlayerIndex,
     currentPlayer: room.playersPool[room.currentPlayerIndex] || null,
-    upcomingPlayers: room.playersPool.slice(room.currentPlayerIndex + 1, room.currentPlayerIndex + 11).map(p => ({id: p.id, name: p.name, role: p.role, basePrice: p.basePrice, ovr: p.ovr})),
+    upcomingPlayers: room.playersPool
+      .slice(room.currentPlayerIndex + 1, room.currentPlayerIndex + 11)
+      .filter(p => p.status === 'upcoming')
+      .map(p => ({ id: p.id, name: p.name, role: p.role, basePrice: p.basePrice, ovr: p.ovr, country: p.country, isOverseas: p.isOverseas })),
+    soldPlayers,
     totalPlayers: room.playersPool.length,
     teams: room.teams,
     timeLeft: room.timeLeft,

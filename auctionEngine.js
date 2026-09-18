@@ -1,8 +1,7 @@
 // Auction Engine & Season Simulation Logic
 const { IPL_TEAMS, PLAYER_TEMPLATES } = require('./playersData');
 
-// Clone and shuffle players for auction pool with slight randomized traits/stats
-function generatePlayerPool(count = 65) {
+function generatePlayerPool(count = 150) {
   const shuffled = [...PLAYER_TEMPLATES].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, Math.min(count, shuffled.length));
 
@@ -29,7 +28,9 @@ function generatePlayerPool(count = 65) {
       status: "upcoming",
       soldTo: null,
       soldPrice: 0,
-      trait: p.trait
+      trait: p.trait,
+      idealBattingPos: p.idealBattingPos || [],
+      idealBowlingOvers: p.idealBowlingOvers || []
     };
   });
 }
@@ -42,13 +43,13 @@ function getNextBidIncrement(currentPrice) {
 }
 
 function canTeamBid(team, bidAmount, isOverseas) {
-  const maxSquad = 18;
+  const maxSquad = 15;
   const maxOverseas = 7;
   const minRequiredSquad = 11;
   const minReservePerSlot = 0.20;
 
   if (team.squad.length >= maxSquad) {
-    return { allowed: false, reason: "Squad limit of 18 players reached." };
+    return { allowed: false, reason: "Squad limit of 15 players reached." };
   }
 
   const overseasCount = team.squad.filter(p => p.isOverseas).length;
@@ -61,10 +62,20 @@ function canTeamBid(team, bidAmount, isOverseas) {
   const reserveNeeded = remainingSlotsNeededFor11 * minReservePerSlot;
 
   if (remainingBudget < reserveNeeded) {
-    return { allowed: false, reason: `Insufficient purse! Need ₹${reserveNeeded.toFixed(2)} Cr reserve to complete squad.` };
+    return { allowed: false, reason: `Insufficient purse! Need \u20B9${reserveNeeded.toFixed(2)} Cr reserve to complete squad.` };
   }
 
   return { allowed: true };
+}
+
+function canBowl(p) {
+  return p.role === "Fast Bowler" || p.role === "Spinner" || p.role === "Medium Pace Bowler" ||
+         p.role === "Fast Bowling Allrounder" || p.role === "Spin Bowling Allrounder";
+}
+
+function isBatter(p) {
+  return p.role === "Batsman" || p.role === "Wicketkeeper" ||
+         p.role === "Fast Bowling Allrounder" || p.role === "Spin Bowling Allrounder";
 }
 
 function evaluateBotInterest(botTeam, player, currentBid) {
@@ -81,16 +92,32 @@ function evaluateBotInterest(botTeam, player, currentBid) {
     "Medium Pace Bowler": botTeam.squad.filter(p => p.role === "Medium Pace Bowler").length
   };
 
+  const bowlerCount = roles["Fast Bowler"] + roles["Spinner"] + roles["Medium Pace Bowler"] +
+                      roles["Fast Bowling Allrounder"] + roles["Spin Bowling Allrounder"];
+
   let roleNeedWeight = 1.0;
-  // If team has no wicketkeeper, heavily prioritize bidding on one!
   if (player.role === "Wicketkeeper") {
-    if (roles["Wicketkeeper"] === 0) roleNeedWeight = 2.0;
+    if (roles["Wicketkeeper"] === 0) roleNeedWeight = 2.5;
+    else if (roles["Wicketkeeper"] === 1) roleNeedWeight = 0.8;
+    else roleNeedWeight = 0.4;
+  } else if (player.role === "Batsman" && roles["Batsman"] < 4) {
+    roleNeedWeight = 1.35;
+  } else if (player.role === "Fast Bowler") {
+    if (bowlerCount < 5) roleNeedWeight = 1.6;
+    else if (roles["Fast Bowler"] < 3) roleNeedWeight = 1.3;
     else roleNeedWeight = 0.7;
-  } else if (player.role === "Batsman" && roles["Batsman"] < 4) roleNeedWeight = 1.35;
-  else if (player.role === "Fast Bowler" && roles["Fast Bowler"] < 3) roleNeedWeight = 1.45;
-  else if (player.role === "Spinner" && roles["Spinner"] < 2) roleNeedWeight = 1.4;
-  else if (player.role.includes("Allrounder") && (roles["Fast Bowling Allrounder"] + roles["Spin Bowling Allrounder"]) < 3) roleNeedWeight = 1.4;
-  else if (botTeam.squad.length > 14) roleNeedWeight = 0.6;
+  } else if (player.role === "Spinner") {
+    if (bowlerCount < 5) roleNeedWeight = 1.5;
+    else if (roles["Spinner"] < 2) roleNeedWeight = 1.3;
+    else roleNeedWeight = 0.7;
+  } else if (player.role === "Medium Pace Bowler") {
+    if (bowlerCount < 5) roleNeedWeight = 1.4;
+    else roleNeedWeight = 0.7;
+  } else if (player.role.includes("Allrounder")) {
+    if ((roles["Fast Bowling Allrounder"] + roles["Spin Bowling Allrounder"]) < 3) roleNeedWeight = 1.4;
+    else roleNeedWeight = 0.7;
+  }
+  if (botTeam.squad.length > 12) roleNeedWeight *= 0.6;
 
   let maxWillingToPay = player.basePrice;
   if (player.ovr >= 95) maxWillingToPay = 16.0 + (player.ovr - 95) * 2.5;
@@ -99,154 +126,167 @@ function evaluateBotInterest(botTeam, player, currentBid) {
   else maxWillingToPay = 1.5 + (player.ovr - 75) * 0.3;
 
   maxWillingToPay *= roleNeedWeight;
-
   const purseFactor = Math.max(0.4, botTeam.purse / 100.0);
   maxWillingToPay *= purseFactor;
-
   const personality = 0.85 + Math.random() * 0.3;
   maxWillingToPay *= personality;
-
   const hardCap = botTeam.purse * 0.45;
   maxWillingToPay = Math.min(maxWillingToPay, hardCap);
 
   return currentBid <= maxWillingToPay;
 }
 
-// Auto-select playing XI for a team (incorporating 1 mandatory WK and max 4 overseas)
 function autoSelectPlayingXI(squad) {
   const sorted = [...squad].sort((a, b) => b.ovr - a.ovr);
   let xi = [];
   let overseasCount = 0;
+  const usedIds = new Set();
 
-  // 1. Mandatory Wicketkeeper first
   const wk = sorted.find(p => p.role === "Wicketkeeper");
   if (wk) {
     xi.push(wk);
+    usedIds.add(wk.id);
     if (wk.isOverseas) overseasCount++;
   }
 
-  // 2. Add remaining top players respecting max 4 overseas
+  const bowlers = sorted.filter(p => canBowl(p) && !usedIds.has(p.id));
+  let bowlersInXI = xi.filter(p => canBowl(p)).length;
+
+  for (const p of bowlers) {
+    if (bowlersInXI >= 5) break;
+    if (xi.length >= 11) break;
+    if (usedIds.has(p.id)) continue;
+    if (p.isOverseas && overseasCount >= 4) continue;
+    xi.push(p);
+    usedIds.add(p.id);
+    if (p.isOverseas) overseasCount++;
+    bowlersInXI++;
+  }
+
+  if (bowlersInXI < 5) {
+    const nonBowlerBatsmen = sorted
+      .filter(p => !usedIds.has(p.id) && !canBowl(p))
+      .sort((a, b) => b.bowl - a.bowl);
+    for (const p of nonBowlerBatsmen) {
+      if (bowlersInXI >= 5) break;
+      if (xi.length >= 11) break;
+      if (p.isOverseas && overseasCount >= 4) continue;
+      xi.push(p);
+      usedIds.add(p.id);
+      if (p.isOverseas) overseasCount++;
+      bowlersInXI++;
+    }
+  }
+
   for (const p of sorted) {
     if (xi.length >= 11) break;
-    if (xi.some(x => x.id === p.id)) continue;
+    if (usedIds.has(p.id)) continue;
     if (p.isOverseas && overseasCount >= 4) continue;
-
     xi.push(p);
+    usedIds.add(p.id);
     if (p.isOverseas) overseasCount++;
   }
 
   return xi;
 }
 
-// Validate custom selected playing XI:
-// - Must be exactly 11 players
-// - Must have at least 1 Wicketkeeper
-// - Maximum 4 overseas players
 function validatePlayingXI(xi) {
   if (!Array.isArray(xi) || xi.length !== 11) {
     return { valid: false, reason: "Playing XI must have exactly 11 players." };
   }
-
   const wkCount = xi.filter(p => p.role === "Wicketkeeper").length;
   if (wkCount < 1) {
     return { valid: false, reason: "Playing XI MUST include at least 1 Wicketkeeper!" };
   }
-
   const overseasCount = xi.filter(p => p.isOverseas).length;
   if (overseasCount > 4) {
     return { valid: false, reason: `Maximum 4 overseas players allowed in Playing XI (currently has ${overseasCount}).` };
   }
-
   return { valid: true };
 }
 
-// Season Simulation Engine
 function simulateSeason(teams) {
   const teamsWithXI = teams.map(t => {
-    // If user has chosen a custom playing XI and it is valid, use it; otherwise auto-select
     let xi = (t.customPlayingXI && t.customPlayingXI.length === 11) 
       ? t.customPlayingXI 
       : autoSelectPlayingXI(t.squad);
 
-    let totalBat = 0;
-    let totalBowl = 0;
+    let totalBat = 0, batCount = 0;
+    let totalBowl = 0, bowlCount = 0;
     let traits = [];
 
     xi.forEach(p => {
-      totalBat += p.bat;
-      totalBowl += p.bowl;
+      if (!p) return;
+      if (isBatter(p)) { totalBat += p.bat; batCount++; }
+      if (canBowl(p)) { totalBowl += p.bowl; bowlCount++; }
       if (p.trait) traits.push(p.trait);
     });
 
-    const avgBat = xi.length > 0 ? (totalBat / xi.length) : 50;
-    const avgBowl = xi.length > 0 ? (totalBowl / xi.length) : 50;
+    let bowlingPenalty = 0;
+    if (bowlCount < 5) {
+      const emergencyBowlers = xi.filter(p => p && !canBowl(p)).sort((a, b) => b.bowl - a.bowl);
+      let needed = 5 - bowlCount;
+      for (let i = 0; i < Math.min(needed, emergencyBowlers.length); i++) {
+        totalBowl += emergencyBowlers[i].bowl;
+        bowlCount++;
+      }
+      bowlingPenalty = needed * 5;
+    }
 
+    let battingPenalty = 0;
+    if (batCount < 5) {
+      const emergencyBatters = xi.filter(p => p && !isBatter(p)).sort((a, b) => b.bat - a.bat);
+      let needed = 5 - batCount;
+      for (let i = 0; i < Math.min(needed, emergencyBatters.length); i++) {
+        totalBat += emergencyBatters[i].bat;
+        batCount++;
+      }
+      battingPenalty = needed * 5;
+    }
+
+    const avgBat = batCount > 0 ? (totalBat / batCount) : 30;
+    const avgBowl = bowlCount > 0 ? (totalBowl / bowlCount) : 30;
     const squadDeficitPenalty = Math.max(0, 11 - t.squad.length) * 15;
 
-    // Trait combos & bonuses
     let traitBonus = 0;
-    if (traits.includes("Finisher") && traits.includes("Chase Master")) traitBonus += 4;
-    if (traits.includes("Yorker King") && traits.includes("Mystery Spinner")) traitBonus += 4;
-    if (traits.includes("Jack of All Trades")) traitBonus += 2.5;
-    if (traits.includes("Captain Cool")) traitBonus += 3;
-    if (traits.includes("Powerplay Destroyer")) traitBonus += 2.5;
-    if (traits.includes("Lightning Gloves")) traitBonus += 2;
+    if (traits.some(tr => tr.includes("Finisher")) && traits.some(tr => tr.includes("Chase Master"))) traitBonus += 4;
+    if (traits.some(tr => tr.includes("Yorker King")) && traits.some(tr => tr.includes("Mystery Spinner"))) traitBonus += 4;
+    if (traits.some(tr => tr.includes("Jack of All Trades"))) traitBonus += 2.5;
+    if (traits.some(tr => tr.includes("Captain Cool"))) traitBonus += 3;
+    if (traits.some(tr => tr.includes("Powerplay Destroyer"))) traitBonus += 2.5;
+    if (traits.some(tr => tr.includes("Lightning Gloves"))) traitBonus += 2;
 
-    const overallRating = Math.max(30, Math.round(((avgBat * 0.5) + (avgBowl * 0.5) + traitBonus) - squadDeficitPenalty));
+    const finalBat = Math.max(30, Math.round(avgBat + traitBonus - squadDeficitPenalty - battingPenalty));
+    const finalBowl = Math.max(30, Math.round(avgBowl + traitBonus - squadDeficitPenalty - bowlingPenalty));
+    const overallRating = Math.round((finalBat + finalBowl) / 2);
 
     return {
       ...t,
       playingXI: xi,
-      avgBat: Math.round(avgBat),
-      avgBowl: Math.round(avgBowl),
+      avgBat: finalBat,
+      avgBowl: finalBowl,
       traitBonus: Math.round(traitBonus),
       overallRating,
-      played: 0,
-      won: 0,
-      lost: 0,
-      tied: 0,
-      points: 0,
-      nrr: 0.0,
-      runsScored: 0,
-      oversFaced: 0,
-      runsConceded: 0,
-      oversBowled: 0,
+      played: 0, won: 0, lost: 0, tied: 0, points: 0, nrr: 0.0,
+      runsScored: 0, oversFaced: 0, runsConceded: 0, oversBowled: 0,
       matchLog: []
     };
   });
-
-  const matchResults = [];
 
   for (let i = 0; i < teamsWithXI.length; i++) {
     for (let j = i + 1; j < teamsWithXI.length; j++) {
       const teamA = teamsWithXI[i];
       const teamB = teamsWithXI[j];
-
       const result = simulateMatch(teamA, teamB);
-      matchResults.push(result);
 
-      teamA.played++;
-      teamB.played++;
+      teamA.played++; teamB.played++;
+      teamA.runsScored += result.scoreA; teamA.oversFaced += result.oversA;
+      teamA.runsConceded += result.scoreB; teamA.oversBowled += result.oversB;
+      teamB.runsScored += result.scoreB; teamB.oversFaced += result.oversB;
+      teamB.runsConceded += result.scoreA; teamB.oversBowled += result.oversA;
 
-      teamA.runsScored += result.scoreA;
-      teamA.oversFaced += result.oversA;
-      teamA.runsConceded += result.scoreB;
-      teamA.oversBowled += result.oversB;
-
-      teamB.runsScored += result.scoreB;
-      teamB.oversFaced += result.oversB;
-      teamB.runsConceded += result.scoreA;
-      teamB.oversBowled += result.oversA;
-
-      if (result.winnerId === teamA.id) {
-        teamA.won++;
-        teamA.points += 2;
-        teamB.lost++;
-      } else {
-        teamB.won++;
-        teamB.points += 2;
-        teamA.lost++;
-      }
+      if (result.winnerId === teamA.id) { teamA.won++; teamA.points += 2; teamB.lost++; }
+      else { teamB.won++; teamB.points += 2; teamA.lost++; }
 
       teamA.matchLog.push({ vs: teamB.name, won: result.winnerId === teamA.id, score: `${result.scoreA}/${result.wicketsA} vs ${result.scoreB}/${result.wicketsB}`, highlight: result.highlight });
       teamB.matchLog.push({ vs: teamA.name, won: result.winnerId === teamB.id, score: `${result.scoreB}/${result.wicketsB} vs ${result.scoreA}/${result.wicketsA}`, highlight: result.highlight });
@@ -269,36 +309,21 @@ function simulateSeason(teams) {
   const q1 = simulateMatch(top4[0], top4[1], "Qualifier 1");
   const q1Winner = q1.winnerId === top4[0].id ? top4[0] : top4[1];
   const q1Loser = q1.winnerId === top4[0].id ? top4[1] : top4[0];
-
   const elim = simulateMatch(top4[2], top4[3], "Eliminator");
   const elimWinner = elim.winnerId === top4[2].id ? top4[2] : top4[3];
-
   const q2 = simulateMatch(q1Loser, elimWinner, "Qualifier 2");
   const q2Winner = q2.winnerId === q1Loser.id ? q1Loser : elimWinner;
-
   const finalMatch = simulateMatch(q1Winner, q2Winner, "Grand Final");
   const champion = finalMatch.winnerId === q1Winner.id ? q1Winner : q2Winner;
   const runnerUp = champion.id === q1Winner.id ? q2Winner : q1Winner;
 
   return {
     standings: teamsWithXI.map((t, idx) => ({
-      rank: idx + 1,
-      id: t.id,
-      name: t.name,
-      owner: t.owner,
-      isHuman: t.isHuman,
-      played: t.played,
-      won: t.won,
-      lost: t.lost,
-      points: t.points,
-      nrr: t.nrr,
-      rating: t.overallRating,
-      avgBat: t.avgBat,
-      avgBowl: t.avgBowl,
-      squadCount: t.squad.length,
-      primaryColor: t.primaryColor,
-      playingXI: t.playingXI,
-      recentMatches: t.matchLog.slice(-5)
+      rank: idx + 1, id: t.id, name: t.name, owner: t.owner, isHuman: t.isHuman,
+      played: t.played, won: t.won, lost: t.lost, points: t.points, nrr: t.nrr,
+      rating: t.overallRating, avgBat: t.avgBat, avgBowl: t.avgBowl,
+      squadCount: t.squad.length, primaryColor: t.primaryColor,
+      playingXI: t.playingXI, recentMatches: t.matchLog.slice(-5)
     })),
     playoffs: {
       qualifier1: { match: q1, winner: q1Winner.name },
@@ -306,27 +331,25 @@ function simulateSeason(teams) {
       qualifier2: { match: q2, winner: q2Winner.name },
       grandFinal: { match: finalMatch, winner: champion.name, championId: champion.id, runnerUp: runnerUp.name }
     },
-    champion: {
-      id: champion.id,
-      name: champion.name,
-      owner: champion.owner,
-      isHuman: champion.isHuman,
-      rating: champion.overallRating
-    }
+    champion: { id: champion.id, name: champion.name, owner: champion.owner, isHuman: champion.isHuman, rating: champion.overallRating }
   };
 }
 
 function simulateMatch(teamA, teamB, stage = "League") {
-  const ratA = teamA.overallRating || 70;
-  const ratB = teamB.overallRating || 70;
+  const batA = teamA.avgBat || 70;
+  const bowlA = teamA.avgBowl || 70;
+  const batB = teamB.avgBat || 70;
+  const bowlB = teamB.avgBowl || 70;
 
-  const diff = ratA - ratB;
-  const winProbA = 1 / (1 + Math.pow(10, -diff / 40));
+  const diffA = batA - bowlB;
+  const diffB = batB - bowlA;
+  const netAdvantageA = (diffA - diffB) / 2;
 
+  const winProbA = 1 / (1 + Math.pow(10, -netAdvantageA / 40));
   const aWins = Math.random() < winProbA;
 
-  const baseScoreA = Math.round(135 + (teamA.avgBat * 0.6) + (Math.random() * 40 - 20));
-  const baseScoreB = Math.round(135 + (teamB.avgBat * 0.6) + (Math.random() * 40 - 20));
+  const baseScoreA = Math.round(135 + (diffA * 0.6) + (Math.random() * 40 - 20));
+  const baseScoreB = Math.round(135 + (diffB * 0.6) + (Math.random() * 40 - 20));
 
   let scoreA, scoreB, wicketsA, wicketsB, oversA = 20.0, oversB = 20.0;
   let highlight = "";
@@ -349,27 +372,14 @@ function simulateMatch(teamA, teamB, stage = "League") {
   const winnerName = aWins ? teamA.name : teamB.name;
 
   return {
-    stage,
-    teamA: teamA.name,
-    teamB: teamB.name,
-    scoreA,
-    wicketsA,
-    oversA,
-    scoreB,
-    wicketsB,
-    oversB,
-    winnerId,
-    winnerName,
+    stage, teamA: teamA.name, teamB: teamB.name,
+    scoreA, wicketsA, oversA, scoreB, wicketsB, oversB,
+    winnerId, winnerName,
     highlight: `${stage}: ${winnerName} won (${scoreA}/${wicketsA} vs ${scoreB}/${wicketsB})`
   };
 }
 
 module.exports = {
-  generatePlayerPool,
-  getNextBidIncrement,
-  canTeamBid,
-  evaluateBotInterest,
-  autoSelectPlayingXI,
-  validatePlayingXI,
-  simulateSeason
+  generatePlayerPool, getNextBidIncrement, canTeamBid, canBowl, isBatter,
+  evaluateBotInterest, autoSelectPlayingXI, validatePlayingXI, simulateSeason
 };
