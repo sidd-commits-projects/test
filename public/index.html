@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPL Mega Auction & Season Simulator</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Canvas Confetti for victory celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+  <!-- BACKGROUND GLOW EFFECTS -->
+  <div class="bg-lights">
+    <div class="light-orb orb-1"></div>
+    <div class="light-orb orb-2"></div>
+    <div class="stadium-overlay"></div>
+  </div>
+
+  <div id="app" class="app-container">
+
+    <!-- HEADER BAR -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="ipl-logo-badge">
+          <span class="ipl-text">IPL</span>
+          <span class="auction-text">AUCTION</span>
+        </div>
+        <div class="league-tag">OFFICIAL SIMULATOR 2026</div>
+      </div>
+
+      <div class="header-center" id="roomInfoBar" style="display: none;">
+        <div class="room-pill">
+          <span class="label">ROOM:</span>
+          <span id="displayRoomCode" class="code-val">----</span>
+          <button id="copyRoomBtn" class="copy-btn" title="Copy Room Code">📋 Share Code</button>
+        </div>
+        <div class="mode-pill" id="displayModeBadge">VS COMPUTER (9 BOTS)</div>
+      </div>
+
+      <div class="header-right">
+        <div id="userBadge" class="user-badge" style="display: none;">
+          <span class="avatar-circle" id="userAvatar">U</span>
+          <div class="user-meta">
+            <span class="user-name" id="displayUserName">Manager</span>
+            <span class="user-team" id="displayUserTeam">Mumbai</span>
+          </div>
+        </div>
+        <button id="rulesModalBtn" class="glass-btn small-btn">📜 Rules & Guide</button>
+      </div>
+    </header>
+
+    <!-- SCREEN 1: ONBOARDING & SETUP -->
+    <section id="screenOnboarding" class="screen-section active">
+      <div class="hero-center">
+        <h1 class="main-title">IPL MULTIPLAYER MEGA AUCTION</h1>
+        <p class="subtitle">Build your ultimate 10-team dream squad, outbid rivals & conquer the simulated season</p>
+
+        <div class="setup-card glass-panel">
+          
+          <!-- Step 1: User details -->
+          <div class="form-step">
+            <label class="step-label">1. Enter Your Manager Name</label>
+            <input type="text" id="inputUserName" class="styled-input" placeholder="e.g. Akash, Shahrukh, Preity..." maxlength="20" autofocus>
+          </div>
+
+          <!-- Step 2: Choose Game Mode -->
+          <div class="form-step">
+            <label class="step-label">2. Select Game Mode</label>
+            <div class="mode-selector-grid">
+              <label class="mode-card active">
+                <input type="radio" name="gameMode" value="solo" checked>
+                <div class="mode-content">
+                  <div class="mode-icon">🤖</div>
+                  <div class="mode-title">Play vs 9 Computers</div>
+                  <div class="mode-desc">Single-player instant auction. 9 smart AI bots bid dynamically based on player OVR and squad balance.</div>
+                </div>
+              </label>
+
+              <label class="mode-card">
+                <input type="radio" name="gameMode" value="multiplayer_create">
+                <div class="mode-content">
+                  <div class="mode-icon">🌐</div>
+                  <div class="mode-title">Host Multiplayer Room</div>
+                  <div class="mode-desc">Share code with friends (up to 10 players). Any empty slots are automatically filled by AI computers!</div>
+                </div>
+              </label>
+
+              <label class="mode-card">
+                <input type="radio" name="gameMode" value="multiplayer_join">
+                <div class="mode-content">
+                  <div class="mode-icon">🔑</div>
+                  <div class="mode-title">Join Existing Room</div>
+                  <div class="mode-desc">Enter the 4-letter Room Code shared by your friend to join their auction lobby.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Join Code Input (Conditional) -->
+          <div id="joinCodeGroup" class="form-step" style="display: none;">
+            <label class="step-label">Enter 4-Letter Room Code</label>
+            <input type="text" id="inputRoomCode" class="styled-input uppercase-code" placeholder="e.g. AB4X" maxlength="4">
+          </div>
+
+          <!-- Auction Interval Speed -->
+          <div id="auctionSpeedGroup" class="form-step">
+            <label class="step-label">3. Auction Hammer Interval (Seconds before SOLD)</label>
+            <div class="speed-selector">
+              <label class="speed-pill">
+                <input type="radio" name="auctionInterval" value="6">
+                <span>⚡ Blitz (6s)</span>
+              </label>
+              <label class="speed-pill active">
+                <input type="radio" name="auctionInterval" value="10" checked>
+                <span>⏱️ Standard (10s)</span>
+              </label>
+              <label class="speed-pill">
+                <input type="radio" name="auctionInterval" value="15">
+                <span>☕ Relaxed (15s)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Step 4: Choose Franchise City -->
+          <div class="form-step">
+            <label class="step-label">4. Select Your IPL City Franchise (10 Teams)</label>
+            <div class="city-selector-grid" id="citySelectorGrid">
+              <!-- Dynamically populated via JS -->
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <div class="action-row">
+            <button id="btnEnterLobby" class="primary-action-btn">
+              <span class="btn-text">START AUCTION LOBBY</span>
+              <span class="btn-shine"></span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 2: MULTIPLAYER LOBBY -->
+    <section id="screenLobby" class="screen-section">
+      <div class="lobby-container glass-panel">
+        <div class="lobby-header">
+          <div class="lobby-title-wrap">
+            <h2>AUCTION WAITING LOBBY</h2>
+            <p>Share Room Code: <strong id="lobbyRoomCode" class="highlight-code">----</strong>. (e.g. if 2 players join, the other 8 are auto-filled by Computer AI!)</p>
+          </div>
+          <div class="lobby-actions">
+            <button id="copyInviteBtn" class="glass-btn">📋 Copy Invite</button>
+            <button id="btnStartAuctionNow" class="primary-action-btn pulse-glow">START AUCTION 🔨</button>
+          </div>
+        </div>
+
+        <div class="lobby-teams-grid" id="lobbyTeamsGrid">
+          <!-- 10 franchise cards showing Human vs AI bot status -->
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 3: LIVE AUCTION STAGE -->
+    <section id="screenAuction" class="screen-section">
+      
+      <!-- Top status bar -->
+      <div class="auction-topbar glass-panel">
+        <div class="stage-info">
+          <span class="badge live-badge"><span class="blink-dot"></span> LIVE AUCTION</span>
+          <span class="lot-counter" id="lotCounter">Player 1 of 60</span>
+        </div>
+        <div class="timer-box">
+          <span class="timer-label">HAMMER COUNTDOWN</span>
+          <div class="timer-clock" id="timerClock">10s</div>
+        </div>
+        <div class="host-tools">
+          <button id="forceNextBtn" class="glass-btn small-btn" title="Host skip or finalize hammer">⏩ Fast-Forward Hammer</button>
+        </div>
+      </div>
+
+      <!-- Main Auction Grid -->
+      <div class="auction-layout">
+        
+        <!-- Left Panel: All 10 Teams Standings, Purses & Squad Counts -->
+        <aside class="panel-teams-status glass-panel">
+          <div class="panel-header">
+            <h3>FRANCHISE PURSES</h3>
+            <span class="info-pill">Max 18 Players | 7 Overseas</span>
+          </div>
+          <div class="teams-purse-list" id="teamsPurseList">
+            <!-- 10 teams listed with remaining purse, squad count, spent -->
+          </div>
+        </aside>
+
+        <!-- Center Stage: Current Player Under Hammer & Bidding Station -->
+        <main class="panel-player-stage glass-panel">
+          
+          <div id="playerStageContent" class="stage-content">
+            <!-- Dynamic player spotlight -->
+          </div>
+
+          <!-- Bidding Console -->
+          <div class="bid-console" id="bidConsole">
+            <div class="current-bid-display">
+              <div class="bid-stat">
+                <span class="stat-label">CURRENT HIGHEST BID</span>
+                <span class="stat-val price-val" id="currentBidAmount">₹0.00 Cr</span>
+              </div>
+              <div class="bid-stat">
+                <span class="stat-label">HELD BY FRANCHISE</span>
+                <span class="stat-val team-val" id="currentBidderName">None</span>
+              </div>
+              <div class="bid-stat">
+                <span class="stat-label">NEXT BID AMOUNT</span>
+                <span class="stat-val next-val" id="nextBidAmount">₹2.00 Cr</span>
+              </div>
+            </div>
+
+            <div class="bid-action-box">
+              <button id="btnPlaceBid" class="bid-btn">
+                <span class="bid-icon">🔨</span>
+                <span class="bid-text">BID FOR <span id="myTeamBidBtnName">YOUR TEAM</span></span>
+                <span class="bid-amt" id="bidBtnAmount">₹2.00 Cr</span>
+              </button>
+              <div id="bidWarningText" class="bid-warning"></div>
+            </div>
+          </div>
+
+        </main>
+
+        <!-- Right Panel: Live Auction Log & User Squad Drawer -->
+        <aside class="panel-live-log glass-panel">
+          <div class="panel-tabs">
+            <button class="tab-btn active" data-tab="tabLog">Live Hammer Feed</button>
+            <button class="tab-btn" data-tab="tabMySquad">My Squad (<span id="mySquadCount">0</span>/18)</button>
+          </div>
+
+          <!-- Tab 1: Live Feed -->
+          <div id="tabLog" class="tab-content active">
+            <div class="logs-feed" id="logsFeed">
+              <!-- Logs populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Tab 2: My Squad -->
+          <div id="tabMySquad" class="tab-content">
+            <div class="my-squad-summary">
+              <div class="summary-pill">Purse Left: <strong id="myPurseLeft">₹100.00 Cr</strong></div>
+              <div class="summary-pill">Overseas: <strong id="myOverseasCount">0/7</strong></div>
+            </div>
+            <div class="squad-list-view" id="mySquadList">
+              <div class="empty-squad-msg">No players purchased yet. Place bids to build your XI!</div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- SCREEN 3.5: PLAYING XI SELECTION SCREEN -->
+    <section id="screenXISelection" class="screen-section">
+      <div class="xi-selection-container glass-panel">
+        <div class="xi-header">
+          <div class="xi-title-wrap">
+            <h2>SELECT YOUR PLAYING XI</h2>
+            <p>Pick exactly <strong>11 players</strong> from your squad. Must include <strong>at least 1 Wicketkeeper (🧤)</strong> and <strong>at most 4 Overseas players (✈️)</strong>.</p>
+          </div>
+          <div class="xi-actions">
+            <button id="btnAutoSelectXI" class="glass-btn">⚡ Auto-Select Best XI</button>
+            <button id="btnLockPlayingXI" class="primary-action-btn pulse-glow">CONFIRM PLAYING XI & SIMULATE 🏏</button>
+          </div>
+        </div>
+
+        <div class="xi-status-bar">
+          <div class="xi-status-pill" id="pillSelectedCount">Selected: <strong>0 / 11</strong></div>
+          <div class="xi-status-pill" id="pillWkCount">Wicketkeepers: <strong>0 (Min 1)</strong></div>
+          <div class="xi-status-pill" id="pillOverseasCount">Overseas: <strong>0 / 4</strong></div>
+          <div class="xi-validation-msg" id="xiValidationMsg"></div>
+        </div>
+
+        <div class="xi-squad-grid" id="xiSquadGrid">
+          <!-- Squad cards to click & toggle into Playing XI -->
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 4: SEASON SIMULATION & LEAGUE RANKINGS -->
+    <section id="screenSeason" class="screen-section">
+      <div class="season-container glass-panel">
+        
+        <div class="season-header">
+          <div class="champion-banner" id="championBanner">
+            <div class="trophy-icon">🏆</div>
+            <div class="champion-text">
+              <span class="congrats-tag">IPL 2026 CHAMPIONS</span>
+              <h1 id="championName">MUMBAI CHAMPIONS</h1>
+              <p id="championManager">Managed by Akash • Squad Rating: 94</p>
+            </div>
+          </div>
+
+          <div class="season-nav-tabs">
+            <button class="season-tab-btn active" data-view="viewStandings">📊 League Standings</button>
+            <button class="season-tab-btn" data-view="viewPlayoffs">⚔️ Playoffs & Finals</button>
+            <button class="season-tab-btn" data-view="viewAllSquads">👥 Squads & Playing XIs</button>
+            <button id="btnPlayAgain" class="glass-btn action-restart">🔄 Start New Auction</button>
+          </div>
+        </div>
+
+        <!-- View 1: Points Table & Standings -->
+        <div id="viewStandings" class="season-view active">
+          <div class="table-responsive">
+            <table class="standings-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Team</th>
+                  <th>Manager</th>
+                  <th>Played</th>
+                  <th>Won</th>
+                  <th>Lost</th>
+                  <th>NRR</th>
+                  <th>Points</th>
+                  <th>Team Rating</th>
+                  <th>Squad Synergies</th>
+                </tr>
+              </thead>
+              <tbody id="standingsTableBody">
+                <!-- Standings dynamic -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- View 2: Playoff Matches -->
+        <div id="viewPlayoffs" class="season-view">
+          <div class="playoffs-bracket" id="playoffsBracket">
+            <!-- Bracket cards -->
+          </div>
+        </div>
+
+        <!-- View 3: All Squads & Playing XI Breakdown -->
+        <div id="viewAllSquads" class="season-view">
+          <div class="all-squads-grid" id="allSquadsGrid">
+            <!-- Squad cards -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RULES & HELP MODAL -->
+    <div id="rulesModal" class="modal-overlay">
+      <div class="modal-card glass-panel">
+        <div class="modal-header">
+          <h2>IPL Auction Rules & Player Special Traits</h2>
+          <button id="closeRulesModal" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="rules-section">
+            <h3>💰 Purse & Squad Constraints</h3>
+            <ul>
+              <li>Each franchise starts with a budget purse of <strong>₹100.00 Crores</strong>.</li>
+              <li>Squad Size: Minimum <strong>11 players</strong>, Maximum <strong>18 players</strong>.</li>
+              <li>Playing XI Requirements: Exactly <strong>11 players</strong>, at least <strong>1 Wicketkeeper (mandatory)</strong>, and at most <strong>4 overseas players</strong>.</li>
+              <li>Multiplayer Flexibility: If 2 or more players join a room, remaining teams are seamlessly operated by AI computer bots.</li>
+              <li>Reserve Rule: Bidding automatically protects remaining funds to ensure you can fill at least 11 players.</li>
+            </ul>
+          </div>
+
+          <div class="rules-section">
+            <h3>🔨 Bidding Increments</h3>
+            <ul>
+              <li>Under ₹1.00 Cr: +₹0.10 Cr (10 Lakhs)</li>
+              <li>₹1.00 Cr - ₹2.00 Cr: +₹0.20 Cr (20 Lakhs)</li>
+              <li>₹2.00 Cr - ₹5.00 Cr: +₹0.25 Cr (25 Lakhs)</li>
+              <li>Above ₹5.00 Cr: +₹0.50 Cr (50 Lakhs)</li>
+            </ul>
+          </div>
+
+          <div class="rules-section">
+            <h3>⭐ Player Categories & Roles</h3>
+            <div class="trait-tags-cloud">
+              <span class="role-badge">Batsman</span>
+              <span class="role-badge">Wicketkeeper (🧤 Mandatory in XI)</span>
+              <span class="role-badge">Fast Bowler</span>
+              <span class="role-badge">Fast Bowling Allrounder</span>
+              <span class="role-badge">Spin Bowling Allrounder</span>
+              <span class="role-badge">Spinner</span>
+              <span class="role-badge">Medium Pace Bowler</span>
+            </div>
+          </div>
+
+          <div class="rules-section">
+            <h3>⚡ Special Traits & Synergies</h3>
+            <div class="traits-grid">
+              <div class="trait-item"><strong>Finisher:</strong> Extreme death-over strike rate & boundary conversion.</div>
+              <div class="trait-item"><strong>Chase Master:</strong> Clutch second-innings bonus when chasing steep totals.</div>
+              <div class="trait-item"><strong>Lightning Gloves:</strong> Wicketkeeper quick stumpings & extra fielding rating.</div>
+              <div class="trait-item"><strong>Yorker King:</strong> Pins batsmen down at death overs; economy and wicket boosts.</div>
+              <div class="trait-item"><strong>Mystery Spinner:</strong> Unreadable variations; chokes runs in middle overs.</div>
+              <div class="trait-item"><strong>Powerplay Destroyer:</strong> Blasts runs at 200+ strike rate in overs 1-6.</div>
+              <div class="trait-item"><strong>Jack of All Trades:</strong> Exceptional dual-threat providing 3D balance.</div>
+              <div class="trait-item"><strong>Swing Wizard:</strong> Early wickets with hooping new-ball movement.</div>
+              <div class="trait-item"><strong>Captain Cool:</strong> Team composure boost in tense playoff finishes.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
