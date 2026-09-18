@@ -339,7 +339,7 @@ function evaluateAiBids(room) {
   const player = room.playersPool[room.currentPlayerIndex];
   if (!player || player.status !== 'bidding') return;
 
-  const botTeams = Object.values(room.teams).filter(t => !t.isHuman && t.id !== player.currentBidder);
+  const botTeams = Object.values(room.teams).filter(t => (!t.isHuman || silent) && t.id !== player.currentBidder);
   if (botTeams.length === 0) return;
 
   let nextAmount = player.currentBid === 0 ? player.basePrice : +(player.currentBid + getNextBidIncrement(player.currentBid)).toFixed(2);
