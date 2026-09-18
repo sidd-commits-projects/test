@@ -71,6 +71,7 @@ const mySquadCount = document.getElementById('mySquadCount');
 const myPurseLeft = document.getElementById('myPurseLeft');
 const myOverseasCount = document.getElementById('myOverseasCount');
 const forceNextBtn = document.getElementById('forceNextBtn');
+const autoCompleteBtn = document.getElementById('autoCompleteBtn');
 
 // Playing XI elements
 const xiSquadGrid = document.getElementById('xiSquadGrid');
@@ -1012,3 +1013,12 @@ socket.on('fast_forward_vote', ({ votes, needed, voterTeamId }) => {
     forceNextBtn.disabled = true;
   }
 });
+
+
+if (autoCompleteBtn) {
+  autoCompleteBtn.addEventListener('click', () => {
+    if (confirm("Are you sure you want to Auto-Complete the auction? This will instantly auto-assign all remaining players to all teams (including yours) and skip straight to XI selection.")) {
+      socket.emit('auto_complete_auction', { roomCode: gameState.roomCode });
+    }
+  });
+}

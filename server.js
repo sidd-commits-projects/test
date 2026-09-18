@@ -230,6 +230,7 @@ io.on('connection', (socket) => {
     // Solo mode: instant skip
     if (room.isComputerMode) {
       if (room.timer) clearInterval(room.timer);
+      simulateBiddingWar(room, false);
       finalizeCurrentPlayer(room);
       if (typeof callback === 'function') callback({ success: true });
       return;
@@ -253,10 +254,57 @@ io.on('connection', (socket) => {
     if (currentVotes >= totalHumans) {
       room.fastForwardVotes.clear();
       if (room.timer) clearInterval(room.timer);
+      simulateBiddingWar(room, false);
       finalizeCurrentPlayer(room);
     }
 
     if (typeof callback === 'function') callback({ success: true, votes: currentVotes, needed: totalHumans });
+  });
+
+  
+  // Auto Complete Auction
+  socket.on('auto_complete_auction', ({ roomCode }, callback) => {
+    const room = rooms[roomCode];
+    if (!room || room.status !== 'auction') return callback?.({ success: false });
+    
+    if (room.timer) clearInterval(room.timer);
+    room.logs.push(`\u26A1 AUTO-COMPLETING AUCTION... Remaining players will be auto-assigned!`);
+    
+    while (room.currentPlayerIndex < room.playersPool.length) {
+      const player = room.playersPool[room.currentPlayerIndex];
+      if (player.status === 'upcoming' || player.status === 'bidding') {
+        player.status = 'bidding';
+        simulateBiddingWar(room, true);
+        
+        // Sync Finalize
+        if (player.currentBidder && player.currentBid > 0) {
+          player.status = 'sold';
+          player.soldTo = player.currentBidder;
+          player.soldPrice = player.currentBid;
+          const winnerTeam = room.teams[player.currentBidder];
+          if (winnerTeam) {
+            winnerTeam.purse = +(winnerTeam.purse - player.soldPrice).toFixed(2);
+            winnerTeam.totalSpent = +(winnerTeam.totalSpent + player.soldPrice).toFixed(2);
+            winnerTeam.squad.push({
+              id: player.id, name: player.name, country: player.country, role: player.role,
+              isOverseas: player.isOverseas, bat: player.bat, bowl: player.bowl, ovr: player.ovr,
+              trait: player.trait, soldPrice: player.soldPrice,
+              idealBattingPos: player.idealBattingPos || [],
+              idealBowlingOvers: player.idealBowlingOvers || []
+            });
+          }
+        } else {
+          player.status = 'unsold';
+        }
+        
+        const allFull = Object.values(room.teams).every(t => t.squad.length >= 15);
+        if (allFull) break;
+      }
+      room.currentPlayerIndex++;
+    }
+    
+    proceedToXISelection(room);
+    if (typeof callback === 'function') callback({ success: true });
   });
 
   // Submit Playing XI
@@ -351,6 +399,37 @@ function nextPlayer(roomCode) {
       finalizeCurrentPlayer(room);
     }
   }, 1000);
+}
+
+
+function simulateBiddingWar(room, includeHumans = false) {
+  const player = room.playersPool[room.currentPlayerIndex];
+  if (!player || player.status !== 'bidding') return;
+
+  let keepBidding = true;
+  let maxIterations = 200;
+
+  while (keepBidding && maxIterations > 0) {
+    maxIterations--;
+    let nextAmount = player.currentBid === 0 ? player.basePrice : +(player.currentBid + getNextBidIncrement(player.currentBid)).toFixed(2);
+    
+    const biddingTeams = Object.values(room.teams).filter(t => 
+      (includeHumans || !t.isHuman) && t.id !== player.currentBidder
+    );
+    const interestedBots = biddingTeams.filter(t => evaluateBotInterest(t, player, nextAmount));
+
+    if (interestedBots.length > 0) {
+      const chosenTeam = interestedBots[Math.floor(Math.random() * interestedBots.length)];
+      player.currentBid = nextAmount;
+      player.currentBidder = chosenTeam.id;
+      player.currentBidderName = chosenTeam.name;
+      
+      const bidLog = `${chosenTeam.name} ${chosenTeam.isHuman ? '(Auto)' : '(AI)'} bids \u20B9${nextAmount.toFixed(2)} Cr (Simulated)!`;
+      room.logs.push(bidLog);
+    } else {
+      keepBidding = false;
+    }
+  }
 }
 
 function evaluateAiBids(room) {
