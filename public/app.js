@@ -758,24 +758,47 @@ function autoSelectMyXI() {
   const myTeam = gameState.roomData.teams[gameState.selectedTeamId];
   if (!myTeam || !myTeam.squad) return;
 
-  gameState.selectedXIIds.clear();
+  gameState.selectedXIIds = new Set();
+  gameState.playingXI = Array(11).fill(null);
+
+  const sorted = [...myTeam.squad].sort((a, b) => b.ovr - a.ovr);
+  let overseasCount = 0;
+  const usedIds = new Set();
+  let slotIdx = 0;
+
+  // Helper to identify bowlers
+  const canBowlFn = p => p.role.includes('Bowler') || p.role === 'Spinner' || p.role.includes('Allrounder');
 
   // 1. Mandatory Wicketkeeper first
-  const wk = myTeam.squad.find(p => p.role === "Wicketkeeper");
-  let overseasCount = 0;
+  const wk = sorted.find(p => p.role === 'Wicketkeeper');
   if (wk) {
     gameState.selectedXIIds.add(wk.id);
+    gameState.playingXI[slotIdx++] = wk.id;
+    usedIds.add(wk.id);
     if (wk.isOverseas) overseasCount++;
   }
 
-  // 2. Add highest OVR remaining players respecting max 4 overseas
-  const sorted = [...myTeam.squad].sort((a, b) => b.ovr - a.ovr);
-  for (const p of sorted) {
-    if (gameState.selectedXIIds.size >= 11) break;
-    if (gameState.selectedXIIds.has(p.id)) continue;
+  // 2. Add bowlers to ensure 5 options
+  const bowlers = sorted.filter(p => canBowlFn(p) && !usedIds.has(p.id));
+  let bowlersInXI = 0;
+  for (const p of bowlers) {
+    if (bowlersInXI >= 5 || slotIdx >= 11) break;
     if (p.isOverseas && overseasCount >= 4) continue;
-
     gameState.selectedXIIds.add(p.id);
+    gameState.playingXI[slotIdx++] = p.id;
+    usedIds.add(p.id);
+    if (p.isOverseas) overseasCount++;
+    bowlersInXI++;
+  }
+
+  // 3. Fill remaining
+  for (const p of sorted) {
+    if (slotIdx >= 11) break;
+    if (usedIds.has(p.id)) continue;
+    if (p.isOverseas && overseasCount >= 4) continue;
+    gameState.selectedXIIds.add(p.id);
+    gameState.playingXI[slotIdx++] = p.id;
+    usedIds.add(p.id);
     if (p.isOverseas) overseasCount++;
   }
 
@@ -784,34 +807,43 @@ function autoSelectMyXI() {
 }
 
 function updateXIValidation(squad) {
+  // Sync selectedXIIds from playingXI
+  gameState.selectedXIIds = new Set(gameState.playingXI.filter(id => id !== null));
   const selectedPlayers = squad.filter(p => gameState.selectedXIIds.has(p.id));
-  const count = selectedPlayers.length;
-  const wkCount = selectedPlayers.filter(p => p.role === "Wicketkeeper").length;
-  const overseasCount = selectedPlayers.filter(p => p.isOverseas).length;
 
-  pillSelectedCount.innerHTML = `Selected: <strong>${count} / 11</strong>`;
-  pillWkCount.innerHTML = `Wicketkeepers: <strong>${wkCount} (Min 1)</strong>`;
-  pillOverseasCount.innerHTML = `Overseas: <strong>${overseasCount} / 4</strong>`;
+  const count = selectedPlayers.length;
+  const wkCount = selectedPlayers.filter(p => p.role === 'Wicketkeeper').length;
+  const overseasCount = selectedPlayers.filter(p => p.isOverseas).length;
+  const canBowlFn = p => p.role.includes('Bowler') || p.role === 'Spinner' || p.role.includes('Allrounder');
+  const bowlerCount = selectedPlayers.filter(canBowlFn).length;
+
+  if (pillSelectedCount) pillSelectedCount.innerHTML = 'Selected: <strong>' + count + ' / 11</strong>';
+  if (pillWkCount) pillWkCount.innerHTML = 'Wicketkeepers: <strong>' + wkCount + ' (Min 1)</strong>';
+  if (pillOverseasCount) pillOverseasCount.innerHTML = 'Overseas: <strong>' + overseasCount + ' / 4</strong>';
+  const pillBowlerCount = document.getElementById('pillBowlerCount');
+  if (pillBowlerCount) pillBowlerCount.innerHTML = 'Bowlers: <strong>' + bowlerCount + ' (Min 5)</strong>';
 
   let valid = true;
-  let msg = "";
+  let msg = '';
 
   if (count !== 11) {
     valid = false;
-    msg = `⚠️ Select exactly 11 players (${count}/11).`;
+    msg = '\u26A0\uFE0F Select exactly 11 players (' + count + '/11).';
   } else if (wkCount < 1) {
     valid = false;
-    msg = `⚠️ Must have at least 1 Wicketkeeper (🧤) in Playing XI!`;
+    msg = '\u26A0\uFE0F Must have at least 1 Wicketkeeper in Playing XI!';
   } else if (overseasCount > 4) {
     valid = false;
-    msg = `⚠️ Maximum 4 Overseas players allowed (${overseasCount}/4).`;
+    msg = '\u26A0\uFE0F Maximum 4 Overseas players allowed (' + overseasCount + '/4).';
   } else {
-    msg = "✅ Playing XI is valid and ready!";
+    msg = '\u2705 Playing XI is valid and ready!';
   }
 
-  xiValidationMsg.textContent = msg;
-  xiValidationMsg.style.color = valid ? "var(--accent-green)" : "var(--accent-red)";
-  btnLockPlayingXI.disabled = !valid;
+  if (xiValidationMsg) {
+    xiValidationMsg.textContent = msg;
+    xiValidationMsg.style.color = valid ? 'var(--accent-green)' : 'var(--accent-red)';
+  }
+  if (btnLockPlayingXI) btnLockPlayingXI.disabled = !valid;
 }
 
 function submitMyPlayingXI() {
@@ -944,7 +976,6 @@ function renderSeasonResults(simResult, roomState) {
 socket.on('room_updated', (roomState) => {
   gameState.roomData = roomState;
   
-  // Route to correct screen based on room status
   if (roomState.status === 'lobby') {
     showScreen(screenLobby);
     renderLobbyTeams(roomState.teams);
