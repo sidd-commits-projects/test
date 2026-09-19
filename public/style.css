@@ -2011,3 +2011,410 @@ body {
 .slot-ideal { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); }
 .slot-warning { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); }
 .slot-danger { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); }
+
+
+/* =========================================================================
+   MOBILE & TABLET RESPONSIVE STYLES
+   ========================================================================= */
+
+/* Tablet: 768px - 1024px */
+@media (max-width: 1024px) {
+  .auction-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    min-height: auto;
+  }
+  .panel-teams-status {
+    max-height: 200px;
+    overflow-y: auto;
+    order: 2;
+  }
+  .panel-player-stage {
+    order: 1;
+  }
+  .panel-live-log {
+    max-height: 300px;
+    overflow-y: auto;
+    order: 3;
+  }
+  .xi-layout {
+    grid-template-columns: 1fr;
+  }
+  .xi-slots-panel, .xi-bench-panel {
+    min-height: auto;
+  }
+}
+
+/* Mobile: below 768px */
+@media (max-width: 768px) {
+  /* Global */
+  body {
+    font-size: 14px;
+  }
+
+  /* Header */
+  .app-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .header-left {
+    flex: 1;
+  }
+  .header-center {
+    display: none;
+  }
+  .header-right {
+    flex: 0 0 auto;
+  }
+  .ipl-logo-badge {
+    font-size: 14px;
+    padding: 4px 8px;
+  }
+  .room-info-bar {
+    font-size: 11px;
+    gap: 6px;
+    padding: 4px 8px;
+  }
+  .user-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+  .user-avatar {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+
+  /* Onboarding */
+  .onboarding-container {
+    padding: 15px;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .city-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .city-card {
+    padding: 10px 6px;
+    font-size: 13px;
+  }
+  .setup-form h2 {
+    font-size: 20px;
+  }
+  .mode-radio-group {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .mode-radio-group label {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  .speed-options {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .speed-options label {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  .primary-action-btn {
+    font-size: 14px;
+    padding: 12px 20px;
+  }
+
+  /* Lobby */
+  .lobby-container {
+    padding: 12px;
+  }
+  .lobby-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  .lobby-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .lobby-teams-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .lobby-team-card {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  /* Auction */
+  .auction-topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .stage-info {
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .timer-box {
+    font-size: 12px;
+  }
+  .timer-clock {
+    font-size: 28px;
+  }
+  .auction-layout {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    min-height: auto;
+  }
+  .panel-teams-status {
+    order: 3;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 10px;
+  }
+  .panel-player-stage {
+    order: 1;
+    padding: 10px;
+  }
+  .panel-live-log {
+    order: 2;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  .panel-header h3 {
+    font-size: 13px;
+  }
+  .info-pill {
+    font-size: 10px;
+  }
+
+  /* Player Card */
+  .player-card-hero {
+    padding: 10px;
+  }
+  .player-name-stage {
+    font-size: 20px;
+  }
+  .player-meta-tags {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .meta-pill {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  .player-stats-grid {
+    gap: 8px;
+  }
+  .stat-box {
+    padding: 6px;
+  }
+  .stat-box-val {
+    font-size: 22px;
+  }
+  .stat-box-title {
+    font-size: 9px;
+  }
+  .trait-callout {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  /* Bid Console */
+  .bid-console {
+    padding: 10px;
+  }
+  .current-bid-display {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bid-stat {
+    text-align: center;
+  }
+  .stat-label {
+    font-size: 10px;
+  }
+  .stat-val {
+    font-size: 16px;
+  }
+  .price-val {
+    font-size: 20px;
+  }
+  .bid-btn {
+    padding: 10px 15px;
+    font-size: 13px;
+  }
+  .bid-action-box {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  /* Force Next / Auto Complete buttons */
+  #forceNextBtn, #autoCompleteBtn {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+
+  /* Tabs */
+  .panel-tabs {
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    font-size: 11px;
+    padding: 5px 8px;
+    flex: 1;
+    text-align: center;
+    min-width: 60px;
+  }
+
+  /* Team Purse Row */
+  .team-purse-row {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  .team-row-name {
+    font-size: 12px;
+  }
+  .team-row-squad {
+    font-size: 10px;
+  }
+  .team-row-purse {
+    font-size: 13px;
+  }
+  .team-row-spent {
+    font-size: 10px;
+  }
+
+  /* Squad Items */
+  .squad-player-row {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .my-squad-summary {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .summary-pill {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  /* XI Selection */
+  .xi-selection-container {
+    padding: 10px;
+  }
+  .xi-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  .xi-header h2 {
+    font-size: 18px;
+  }
+  .xi-header p {
+    font-size: 12px;
+  }
+  .xi-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .xi-status-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .xi-status-pill {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  .xi-layout {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .xi-slots-panel, .xi-bench-panel {
+    padding: 10px;
+    min-height: auto;
+  }
+  .xi-slot-player-display {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .xi-bench-player {
+    padding: 8px;
+    font-size: 12px;
+  }
+  .bench-role {
+    font-size: 10px;
+  }
+
+  /* Season Results */
+  .season-container {
+    padding: 10px;
+  }
+  .champion-banner h1 {
+    font-size: 24px;
+  }
+  .champion-banner h2 {
+    font-size: 18px;
+  }
+  .standings-table {
+    font-size: 11px;
+  }
+  .standings-table th, .standings-table td {
+    padding: 6px 4px;
+  }
+  .playoffs-bracket {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .playoff-match-card {
+    padding: 10px;
+    font-size: 12px;
+  }
+  .all-squads-grid {
+    grid-template-columns: 1fr;
+  }
+  .squad-breakdown-card {
+    padding: 10px;
+  }
+
+  /* Rules Modal */
+  .rules-modal-content {
+    width: 95%;
+    max-height: 85vh;
+    padding: 15px;
+  }
+}
+
+/* Small Mobile: below 480px */
+@media (max-width: 480px) {
+  .city-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lobby-teams-grid {
+    grid-template-columns: 1fr;
+  }
+  .timer-clock {
+    font-size: 24px;
+  }
+  .player-name-stage {
+    font-size: 18px;
+  }
+  .stat-box-val {
+    font-size: 18px;
+  }
+  .bid-btn {
+    padding: 8px 12px;
+  }
+  .standings-table {
+    font-size: 10px;
+    overflow-x: auto;
+    display: block;
+  }
+}

@@ -346,9 +346,45 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback({ success: true });
   });
 
-  // Disconnect
+  // Reconnect / Rejoin — allows a player who refreshed or lost connection to rejoin
+  socket.on('rejoin_room', ({ roomCode, teamId, userName }, callback) => {
+    try {
+      const room = rooms[roomCode];
+      if (!room) return callback?.({ success: false, message: "Room no longer exists." });
+
+      const team = room.teams[teamId];
+      if (!team) return callback?.({ success: false, message: "Team not found." });
+
+      // Re-associate the socket
+      team.socketId = socket.id;
+      team.isHuman = true;
+      team.owner = userName;
+      room.sockets[socket.id] = { userName, teamId, isHost: false };
+
+      socket.join(roomCode);
+
+      room.logs.push(`${userName} reconnected to ${team.name}.`);
+
+      io.to(roomCode).emit('room_updated', getSanitizedRoomState(room));
+
+      if (typeof callback === 'function') {
+        callback({
+          success: true,
+          roomCode,
+          roomState: getSanitizedRoomState(room)
+        });
+      }
+    } catch (err) {
+      console.error('Rejoin error:', err);
+      if (typeof callback === 'function') callback({ success: false, message: err.message });
+    }
+  });
+
+  // Disconnect — log but keep team as human (allow rejoin)
   socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);
+    // We do NOT remove the team's isHuman flag so the slot stays reserved
+    // The player can rejoin with rejoin_room
   });
 });
 
@@ -596,6 +632,27 @@ function getSanitizedRoomState(room) {
     .filter(p => p.status === 'sold')
     .map(p => ({ id: p.id, name: p.name, role: p.role, ovr: p.ovr, soldTo: p.soldTo, soldPrice: p.soldPrice }));
 
+  // Sanitize teams — strip socketId to avoid leaking internal state
+  const sanitizedTeams = {};
+  Object.keys(room.teams).forEach(tId => {
+    const t = room.teams[tId];
+    sanitizedTeams[tId] = {
+      id: t.id,
+      name: t.name,
+      fullName: t.fullName,
+      primaryColor: t.primaryColor,
+      secondaryColor: t.secondaryColor,
+      shortCode: t.shortCode,
+      purse: t.purse,
+      totalSpent: t.totalSpent,
+      squad: t.squad,
+      customPlayingXI: t.customPlayingXI,
+      owner: t.owner,
+      isHuman: t.isHuman,
+      xiReady: t.xiReady || false
+    };
+  });
+
   return {
     roomCode: room.roomCode,
     isComputerMode: room.isComputerMode,
@@ -609,7 +666,7 @@ function getSanitizedRoomState(room) {
       .map(p => ({ id: p.id, name: p.name, role: p.role, basePrice: p.basePrice, ovr: p.ovr, country: p.country, isOverseas: p.isOverseas })),
     soldPlayers,
     totalPlayers: room.playersPool.length,
-    teams: room.teams,
+    teams: sanitizedTeams,
     timeLeft: room.timeLeft,
     logs: room.logs.slice(-25),
     simulationResult: room.simulationResult

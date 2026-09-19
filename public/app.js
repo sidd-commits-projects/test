@@ -1,5 +1,29 @@
 // Frontend Controller & Socket.io client for IPL Mega Auction
-const socket = io();
+const socket = io({ reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
+
+// Auto-reconnect and rejoin room
+socket.on('connect', () => {
+  console.log('Socket connected:', socket.id);
+  // If we were in a room, rejoin it
+  if (gameState.roomCode && gameState.userName && gameState.selectedTeamId) {
+    socket.emit('rejoin_room', {
+      roomCode: gameState.roomCode,
+      teamId: gameState.selectedTeamId,
+      userName: gameState.userName
+    }, (res) => {
+      if (res && res.success) {
+        console.log('Rejoined room successfully');
+        gameState.roomData = res.roomState;
+        updateHeaderBadge();
+      }
+    });
+  }
+});
+
+socket.on('disconnect', () => {
+  console.log('Socket disconnected — will auto-reconnect');
+});
+
 
 let gameState = {
   userName: '',
@@ -919,10 +943,18 @@ function renderSeasonResults(simResult, roomState) {
 // REALTIME SOCKET LISTENERS
 socket.on('room_updated', (roomState) => {
   gameState.roomData = roomState;
-  renderLobbyTeams(roomState.teams);
-  if (roomState.status === 'auction') {
+  
+  // Route to correct screen based on room status
+  if (roomState.status === 'lobby') {
+    showScreen(screenLobby);
+    renderLobbyTeams(roomState.teams);
+  } else if (roomState.status === 'auction') {
     renderAuctionStage(roomState.currentPlayer, roomState);
     if (typeof renderUpcomingPlayers === 'function') renderUpcomingPlayers(roomState.upcomingPlayers);
+  } else if (roomState.status === 'xi_selection') {
+    showPlayingXISelection(roomState);
+  } else if (roomState.status === 'season_simulated' && roomState.simulationResult) {
+    renderSeasonResults(roomState.simulationResult, roomState);
   }
 });
 
