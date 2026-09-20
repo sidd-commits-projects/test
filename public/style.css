@@ -2418,3 +2418,6 @@ body {
     display: block;
   }
 }
+
+/* Polyfill Touch Fix */
+.xi-slot-player-display, .xi-bench-player { touch-action: none; }
