@@ -33,7 +33,8 @@ let gameState = {
   roomCode: '',
   isHost: false,
   roomData: null,
-  selectedXIIds: new Set()
+  selectedXIIds: new Set(),
+  playingXI: Array(11).fill(null)
 };
 
 const IPL_TEAMS_DATA = [
@@ -547,12 +548,16 @@ function addLog(text, type = 'normal') {
 function showPlayingXISelection(roomState) {
   showScreen(screenXISelection);
   const myTeam = roomState.teams[gameState.selectedTeamId];
-  if (!myTeam) return;
+  if (!myTeam || !myTeam.squad || myTeam.squad.length === 0) return;
 
-  // Pre-select existing customPlayingXI or first 11
   gameState.selectedXIIds = new Set();
+  gameState.playingXI = Array(11).fill(null);
+
   if (myTeam.customPlayingXI && myTeam.customPlayingXI.length === 11) {
-    myTeam.customPlayingXI.forEach(p => gameState.selectedXIIds.add(p.id));
+    myTeam.customPlayingXI.forEach((p, i) => {
+      gameState.selectedXIIds.add(p.id);
+      gameState.playingXI[i] = p.id;
+    });
   } else {
     autoSelectMyXI();
   }
@@ -628,6 +633,7 @@ function renderXISquadCards(squad) {
                            <button class="remove-player-btn" data-slot="${slotIndex}">X</button>`;
                            
       display.addEventListener('dragstart', (e) => {
+        if(e.dataTransfer) e.dataTransfer.setData('text/plain', p.id);
         draggedPlayerId = p.id;
         draggedSourceSlot = slotIndex;
         display.classList.add('dragging');
@@ -737,6 +743,7 @@ function renderXISquadCards(squad) {
       `;
       
       benchDiv.addEventListener('dragstart', (e) => {
+        if(e.dataTransfer) e.dataTransfer.setData('text/plain', p.id);
         draggedPlayerId = p.id;
         draggedSourceSlot = null;
         benchDiv.classList.add('dragging');
