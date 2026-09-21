@@ -51,16 +51,24 @@ function getNextBidIncrement(currentPrice) {
 
 function canTeamBid(team, bidAmount, isOverseas) {
   const maxSquad = 15;
-  const maxOverseas = 7;
+  const maxOverseas = 8; // Increased from 7 to allow more flexibility, as long as we have 7 Indians
   const minRequiredSquad = 11;
   const minReservePerSlot = 0.20;
+  const minIndiansRequired = 7;
 
   if (team.squad.length >= maxSquad) {
     return { allowed: false, reason: 'Squad limit of 15 players reached.' };
   }
   const overseasCount = team.squad.filter(p => p.isOverseas).length;
-  if (isOverseas && overseasCount >= maxOverseas) {
-    return { allowed: false, reason: 'Overseas limit of 7 players reached.' };
+  if (isOverseas) {
+    if (overseasCount >= maxOverseas) {
+      return { allowed: false, reason: 'Overseas limit of ' + maxOverseas + ' players reached.' };
+    }
+    const currentIndians = team.squad.filter(p => !p.isOverseas).length;
+    const remainingSlotsAfterThis = maxSquad - (team.squad.length + 1);
+    if (currentIndians + remainingSlotsAfterThis < minIndiansRequired) {
+      return { allowed: false, reason: 'Must reserve remaining slots to meet the minimum 7 Indian players requirement.' };
+    }
   }
   const remainingBudget = team.purse - bidAmount;
   const remainingSlotsNeededFor11 = Math.max(0, minRequiredSquad - (team.squad.length + 1));

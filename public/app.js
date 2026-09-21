@@ -497,7 +497,7 @@ function renderTeamsPurseList(teams, currentBidderId) {
           ${team.name}
           ${team.isHuman ? '<span class="tag-human-mini">USER</span>' : ''}
         </div>
-        <div class="team-row-squad">Squad: ${team.squad.length}/18 (${overseasCount}✈️)</div>
+        <div class="team-row-squad">Squad: ${team.squad.length}/15 (${overseasCount}✈️)</div>
       </div>
       <div class="team-row-right">
         <div class="team-row-purse">₹${team.purse.toFixed(2)} Cr</div>
