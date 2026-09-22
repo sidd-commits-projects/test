@@ -2421,3 +2421,5 @@ body {
 
 /* Polyfill Touch Fix */
 .xi-slot-player-display, .xi-bench-player { touch-action: none; }
+
+#btnToggleVoice.active { background: var(--accent-green) !important; color: white; border-color: transparent; }

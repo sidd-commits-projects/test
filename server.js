@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
         teams[teamId].isHuman = true;
       }
 
-      const playerPool = generatePlayerPool(150);
+      const playerPool = generatePlayerPool(190);
 
       rooms[roomCode] = {
         roomCode,
@@ -297,7 +297,7 @@ io.on('connection', (socket) => {
           player.status = 'unsold';
         }
         
-        const allFull = Object.values(room.teams).every(t => t.squad.length >= 15);
+        const allFull = Object.values(room.teams).every(t => t.squad.length >= 25);
         if (allFull) break;
       }
       room.currentPlayerIndex++;
@@ -381,6 +381,23 @@ io.on('connection', (socket) => {
   });
 
   // Disconnect — log but keep team as human (allow rejoin)
+  
+  // WebRTC Signaling for Voice Chat
+  socket.on('webrtc_signal', ({ roomCode, targetId, signalData }) => {
+    // Relay the signal to the specific target
+    if (targetId) {
+      io.to(targetId).emit('webrtc_signal', {
+        senderId: socket.id,
+        signalData
+      });
+    }
+  });
+
+  socket.on('join_voice', ({ roomCode }) => {
+    // Notify others in the room that this user joined voice
+    socket.to(roomCode).emit('user_joined_voice', { socketId: socket.id });
+  });
+
   socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);
     // We do NOT remove the team's isHuman flag so the slot stays reserved
@@ -549,7 +566,7 @@ function finalizeCurrentPlayer(room) {
     });
   }
 
-  const allFull = Object.values(room.teams).every(t => t.squad.length >= 15);
+  const allFull = Object.values(room.teams).every(t => t.squad.length >= 25);
   if (allFull) {
     setTimeout(() => proceedToXISelection(room), 2500);
   } else {

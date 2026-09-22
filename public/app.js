@@ -470,9 +470,9 @@ function updateBidConsole(player, roomState) {
   } else if (myTeam && myTeam.purse < nextBid) {
     btnPlaceBid.disabled = true;
     bidWarningText.textContent = "Insufficient purse to bid!";
-  } else if (myTeam && myTeam.squad.length >= 15) {
+  } else if (myTeam && myTeam.squad.length >= 25) {
     btnPlaceBid.disabled = true;
-    bidWarningText.textContent = "Squad limit reached (15/15)!";
+    bidWarningText.textContent = "Squad limit reached (25/25)!";
   } else {
     btnPlaceBid.disabled = false;
     bidWarningText.textContent = "";
@@ -497,7 +497,7 @@ function renderTeamsPurseList(teams, currentBidderId) {
           ${team.name}
           ${team.isHuman ? '<span class="tag-human-mini">USER</span>' : ''}
         </div>
-        <div class="team-row-squad">Squad: ${team.squad.length}/15 (${overseasCount}✈️)</div>
+        <div class="team-row-squad">Squad: ${team.squad.length}/25 (${overseasCount}✈️)</div>
       </div>
       <div class="team-row-right">
         <div class="team-row-purse">₹${team.purse.toFixed(2)} Cr</div>
@@ -514,7 +514,7 @@ function renderMySquad(myTeam) {
 
   myPurseLeft.textContent = `₹${myTeam.purse.toFixed(2)} Cr`;
   const overseas = myTeam.squad.filter(p => p.isOverseas).length;
-  myOverseasCount.textContent = `${overseas}/7`;
+  myOverseasCount.textContent = `${overseas}/8`;
   mySquadCount.textContent = myTeam.squad.length;
 
   if (myTeam.squad.length === 0) {
@@ -523,18 +523,35 @@ function renderMySquad(myTeam) {
   }
 
   mySquadList.innerHTML = '';
-  myTeam.squad.forEach((p, idx) => {
-    const item = document.createElement('div');
-    item.className = 'squad-player-row';
-    item.innerHTML = `
-      <div>
-        <span class="squad-p-name">${idx + 1}. ${p.name} <span class="trait-tag-micro">[${p.trait}]</span></span>
-        <span class="squad-p-sub">${p.role === 'Wicketkeeper' ? '🧤 ' : ''}${p.role} • OVR: ${p.ovr} ${p.isOverseas ? '✈️' : ''}</span>
-      </div>
-      <div class="squad-p-price">₹${p.soldPrice.toFixed(2)} Cr</div>
-    `;
-    mySquadList.appendChild(item);
-  });
+  
+  const batters = myTeam.squad.filter(p => p.role === 'Batsman' || p.role === 'Wicketkeeper');
+  const allrounders = myTeam.squad.filter(p => p.role.includes('Allrounder'));
+  const bowlers = myTeam.squad.filter(p => p.role === 'Fast Bowler' || p.role === 'Spinner' || p.role === 'Medium Pace Bowler');
+  
+  const renderGroup = (title, players) => {
+    if (players.length === 0) return;
+    const header = document.createElement('div');
+    header.style.cssText = "font-weight: 700; color: var(--primary-gold); font-size: 0.9rem; margin: 10px 0 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 3px;";
+    header.textContent = title + " (" + players.length + ")";
+    mySquadList.appendChild(header);
+    
+    players.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'squad-player-row';
+      item.innerHTML = `
+        <div>
+          <span class="squad-p-name">${p.name} <span class="trait-tag-micro">[${p.trait}]</span></span>
+          <span class="squad-p-sub">${p.role === 'Wicketkeeper' ? '🧤 ' : ''}${p.role} • OVR: ${p.ovr} ${p.isOverseas ? '✈️' : ''}</span>
+        </div>
+        <div class="squad-p-price">₹${p.soldPrice.toFixed(2)} Cr</div>
+      `;
+      mySquadList.appendChild(item);
+    });
+  };
+
+  renderGroup('Batsmen & Wicketkeepers', batters);
+  renderGroup('All-Rounders', allrounders);
+  renderGroup('Bowlers', bowlers);
 }
 
 function addLog(text, type = 'normal') {

@@ -1,7 +1,7 @@
 // Auction Engine & Season Simulation Logic
 const { IPL_TEAMS, PLAYER_TEMPLATES } = require('./playersData');
 
-function generatePlayerPool(count = 150) {
+function generatePlayerPool(count = 190) {
   const shuffled = [...PLAYER_TEMPLATES].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, Math.min(count, shuffled.length));
 
@@ -50,7 +50,7 @@ function getNextBidIncrement(currentPrice) {
 }
 
 function canTeamBid(team, bidAmount, isOverseas) {
-  const maxSquad = 15;
+  const maxSquad = 25;
   const maxOverseas = 8; // Increased from 7 to allow more flexibility, as long as we have 7 Indians
   const minRequiredSquad = 11;
   const minReservePerSlot = 0.20;
