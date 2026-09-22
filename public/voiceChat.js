@@ -1,6 +1,7 @@
 // Voice Chat WebRTC Mesh Logic
 let localStream = null;
 let peers = {}; // socketId -> RTCPeerConnection
+let iceCandidateQueue = {}; // socketId -> array of candidates
 let isVoiceActive = false;
 let isMuted = false;
 
@@ -29,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         console.error("Error accessing microphone", err);
-        alert("Microphone access denied or unavailable.");
+        alert("Microphone access denied or unavailable. Please check your browser permissions.");
       }
     } else {
       // Toggle Mute
@@ -63,27 +64,48 @@ socket.on('webrtc_signal', async ({ senderId, signalData }) => {
 
   let peer = peers[senderId];
   
-  if (signalData.type === 'offer') {
-    if (!peer) peer = createPeerConnection(senderId);
-    await peer.setRemoteDescription(new RTCSessionDescription(signalData.offer));
-    const answer = await peer.createAnswer();
-    await peer.setLocalDescription(answer);
-    
-    socket.emit('webrtc_signal', {
-      roomCode: typeof gameState !== 'undefined' ? gameState.roomCode : '',
-      targetId: senderId,
-      signalData: { type: 'answer', answer }
-    });
-  } 
-  else if (signalData.type === 'answer') {
-    if (peer) {
-      await peer.setRemoteDescription(new RTCSessionDescription(signalData.answer));
+  try {
+    if (signalData.type === 'offer') {
+      if (!peer) peer = createPeerConnection(senderId);
+      await peer.setRemoteDescription(new RTCSessionDescription(signalData.offer));
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      
+      socket.emit('webrtc_signal', {
+        roomCode: typeof gameState !== 'undefined' ? gameState.roomCode : '',
+        targetId: senderId,
+        signalData: { type: 'answer', answer }
+      });
+
+      // Process queued ICE candidates
+      if (iceCandidateQueue[senderId]) {
+        for (let cand of iceCandidateQueue[senderId]) {
+          await peer.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.error(e));
+        }
+        delete iceCandidateQueue[senderId];
+      }
+    } 
+    else if (signalData.type === 'answer') {
+      if (peer) {
+        await peer.setRemoteDescription(new RTCSessionDescription(signalData.answer));
+        if (iceCandidateQueue[senderId]) {
+          for (let cand of iceCandidateQueue[senderId]) {
+            await peer.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.error(e));
+          }
+          delete iceCandidateQueue[senderId];
+        }
+      }
+    } 
+    else if (signalData.type === 'ice-candidate') {
+      if (peer && peer.remoteDescription) {
+        await peer.addIceCandidate(new RTCIceCandidate(signalData.candidate)).catch(e => console.error(e));
+      } else {
+        if (!iceCandidateQueue[senderId]) iceCandidateQueue[senderId] = [];
+        iceCandidateQueue[senderId].push(signalData.candidate);
+      }
     }
-  } 
-  else if (signalData.type === 'ice-candidate') {
-    if (peer && signalData.candidate) {
-      await peer.addIceCandidate(new RTCIceCandidate(signalData.candidate));
-    }
+  } catch(e) {
+    console.error("WebRTC Error handling signal:", e);
   }
 });
 
@@ -116,7 +138,12 @@ function createPeerConnection(peerSocketId) {
       audioEl.autoplay = true;
       document.body.appendChild(audioEl);
     }
-    audioEl.srcObject = event.streams[0];
+    
+    if (event.streams && event.streams[0]) {
+      audioEl.srcObject = event.streams[0];
+    } else {
+      audioEl.srcObject = new MediaStream([event.track]);
+    }
   };
   
   peer.onconnectionstatechange = () => {
