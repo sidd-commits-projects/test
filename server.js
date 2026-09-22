@@ -267,6 +267,20 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (!room || room.status !== 'auction') return callback?.({ success: false });
     
+    if (!room.skipVotes) room.skipVotes = new Set();
+    const teamId = Object.keys(room.teams).find(id => room.teams[id].owner === socket.id);
+    if (!teamId) return callback?.({ success: false });
+    
+    room.skipVotes.add(teamId);
+    
+    const humanTeams = Object.values(room.teams).filter(t => t.isHuman).length;
+    
+    if (room.skipVotes.size < humanTeams) {
+       room.logs.push(`⏳ Waiting for ${humanTeams - room.skipVotes.size} more player(s) to vote to Skip Entire Auction...`);
+       io.to(roomCode).emit('room_state_update', getSanitizedRoomState(room));
+       return callback?.({ success: true, pending: true });
+    }
+    
     if (room.timer) clearInterval(room.timer);
     room.logs.push(`\u26A1 AUTO-COMPLETING AUCTION... Remaining players will be auto-assigned!`);
     

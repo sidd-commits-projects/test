@@ -1107,7 +1107,12 @@ socket.on('fast_forward_vote', ({ votes, needed, voterTeamId }) => {
 if (autoCompleteBtn) {
   autoCompleteBtn.addEventListener('click', () => {
     if (confirm("Are you sure you want to Auto-Complete the auction? This will instantly auto-assign all remaining players to all teams (including yours) and skip straight to XI selection.")) {
-      socket.emit('auto_complete_auction', { roomCode: gameState.roomCode });
+      socket.emit('auto_complete_auction', { roomCode: gameState.roomCode }, (res) => {
+        if (res && res.pending) {
+          autoCompleteBtn.textContent = '⏳ Waiting for others...';
+          autoCompleteBtn.disabled = true;
+        }
+      });
     }
   });
 }
