@@ -407,11 +407,88 @@ function simulateMatch(teamA, teamB, stage) {
   var winnerId = aWins ? teamA.id : teamB.id;
   var winnerName = aWins ? teamA.name : teamB.name;
 
+  function generateScorecard(batTeam, bowlTeam, runs, wickets) {
+    var scorecard = { batters: [], bowlers: [] };
+    if (!batTeam.playingXI || !bowlTeam.playingXI) return scorecard;
+    
+    var batters = batTeam.playingXI;
+    var totalBatWeight = 0;
+    var weights = [];
+    var battedCount = Math.min(11, wickets + 2 + Math.floor(Math.random() * 2)); 
+    for(var i=0; i<11; i++) {
+      if(i < battedCount && batters[i]) {
+        var w = Math.pow((batters[i].bat || 10)/100, 2);
+        if(i < 3) w *= 1.4;
+        else if(i < 6) w *= 1.1;
+        weights.push(w);
+        totalBatWeight += w;
+      } else {
+        weights.push(0);
+      }
+    }
+    
+    var runsAssigned = 0;
+    for(var i=0; i<11; i++) {
+      if(weights[i] > 0 && batters[i]) {
+        var r = Math.round((weights[i] / totalBatWeight) * runs);
+        runsAssigned += r;
+        var balls = Math.max(1, Math.round(r / (0.8 + Math.random()*0.8)));
+        scorecard.batters.push({ name: batters[i].name, runs: r, balls: balls, out: i < wickets });
+      }
+    }
+    if (scorecard.batters.length > 0) scorecard.batters[0].runs += (runs - runsAssigned);
+    
+    var possibleBowlers = bowlTeam.playingXI.filter(function(p) { return (p.bowl >= 50 || p.role.includes('Bowl') || p.role.includes('Allrounder')) && p.role !== 'Wicketkeeper'; });
+    if(possibleBowlers.length < 5) possibleBowlers = bowlTeam.playingXI.slice().sort(function(a,b){return b.bowl-a.bowl}).slice(0,5);
+    
+    var oversToAssign = 20;
+    var assignedOvers = [];
+    for(var i=0; i<possibleBowlers.length; i++) assignedOvers.push(0);
+    
+    while(oversToAssign > 0) {
+      for(var i=0; i<possibleBowlers.length; i++) {
+        if(oversToAssign > 0 && assignedOvers[i] < 4) {
+          assignedOvers[i]++;
+          oversToAssign--;
+        }
+      }
+    }
+    
+    var totalBowlWeight = 0;
+    var bWeights = [];
+    for(var i=0; i<possibleBowlers.length; i++) {
+      var bw = Math.pow((possibleBowlers[i].bowl || 10)/100, 2);
+      bWeights.push(bw);
+      totalBowlWeight += bw;
+    }
+    
+    var wktsAssigned = 0;
+    var runsConceded = 0;
+    for(var i=0; i<possibleBowlers.length; i++) {
+      var w = Math.round((bWeights[i] / totalBowlWeight) * wickets);
+      var rc = assignedOvers[i] * Math.round(runs/20) + Math.floor(Math.random()*10 - 5);
+      if (rc < 0) rc = 0;
+      wktsAssigned += w;
+      runsConceded += rc;
+      scorecard.bowlers.push({ name: possibleBowlers[i].name, overs: assignedOvers[i], wickets: w, runs: rc });
+    }
+    if (scorecard.bowlers.length > 0) {
+      scorecard.bowlers[0].wickets += (wickets - wktsAssigned);
+      scorecard.bowlers[0].runs += (runs - runsConceded);
+      if (scorecard.bowlers[0].wickets < 0) scorecard.bowlers[0].wickets = 0;
+      if (scorecard.bowlers[0].runs < 0) scorecard.bowlers[0].runs = 0;
+    }
+    
+    return scorecard;
+  }
+
   return {
     stage: stage, teamA: teamA.name, teamB: teamB.name,
     scoreA: scoreA, wicketsA: wicketsA, oversA: oversA, scoreB: scoreB, wicketsB: wicketsB, oversB: oversB,
     winnerId: winnerId, winnerName: winnerName,
-    highlight: stage + ': ' + winnerName + ' won (' + scoreA + '/' + wicketsA + ' vs ' + scoreB + '/' + wicketsB + ')'
+    highlight: stage + ': ' + winnerName + ' won (' + scoreA + '/' + wicketsA + ' vs ' + scoreB + '/' + wicketsB + ')',
+    scorecardA: generateScorecard(teamA, teamB, scoreA, wicketsA),
+    scorecardB: generateScorecard(teamB, teamA, scoreB, wicketsB)
   };
 }
 
