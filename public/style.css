@@ -2423,3 +2423,7 @@ body {
 .xi-slot-player-display, .xi-bench-player { touch-action: none; }
 
 #btnToggleVoice.active { background: var(--accent-green) !important; color: white; border-color: transparent; }
+
+@media (max-width: 768px) { .header-right { flex-wrap: wrap; justify-content: flex-end; gap: 5px; } .small-btn { padding: 4px 8px; font-size: 11px; }  }
+
+@media (max-width: 600px) { #btnToggleVoice { padding: 4px; font-size: 14px; } #btnToggleVoice span { display: none; } #rulesModalBtn { padding: 4px; font-size: 14px; } #rulesModalBtn span { display: none; } .header-right { gap: 5px; } }

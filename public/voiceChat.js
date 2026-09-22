@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         isVoiceActive = true;
-        btnToggleVoice.innerHTML = '🔇 Mute';
+        btnToggleVoice.innerHTML = '🔇 <span>Mute</span>';
         btnToggleVoice.classList.add('active');
         
         // Notify others
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Toggle Mute
       isMuted = !isMuted;
       localStream.getAudioTracks()[0].enabled = !isMuted;
-      btnToggleVoice.innerHTML = isMuted ? '🔊 Unmute' : '🔇 Mute';
+      btnToggleVoice.innerHTML = isMuted ? '🔊 <span>Unmute</span>' : '🔇 <span>Mute</span>';
       if(isMuted) btnToggleVoice.classList.remove('active');
       else btnToggleVoice.classList.add('active');
     }
