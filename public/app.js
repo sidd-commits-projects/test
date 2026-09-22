@@ -361,6 +361,8 @@ function onRoomJoined(roomState, roomCode) {
 
 function updateHeaderBadge() {
   userBadge.style.display = 'flex';
+  const voiceBtn = document.getElementById('btnToggleVoice');
+  if (voiceBtn) voiceBtn.style.display = 'inline-block';
   userAvatar.textContent = (gameState.userName[0] || 'M').toUpperCase();
   displayUserName.textContent = gameState.userName || 'Manager';
   const teamObj = IPL_TEAMS_DATA.find(t => t.id === gameState.selectedTeamId);
