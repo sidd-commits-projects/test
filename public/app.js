@@ -953,23 +953,78 @@ function renderSeasonResults(simResult, roomState) {
     if (m.isFinal) card.style.borderColor = 'var(--primary-gold)';
 
     card.innerHTML = `
-      <div class="playoff-stage-title">${m.title}</div>
-      <div class="match-scores-wrap">
-        <div class="match-team-row ${match.winnerName === match.teamA ? 'winner' : ''}">
-          <span>${match.teamA}</span>
-          <span>${match.scoreA}/${match.wicketsA} (${match.oversA} ov)</span>
-        </div>
-        <div class="match-team-row ${match.winnerName === match.teamB ? 'winner' : ''}">
-          <span>${match.teamB}</span>
-          <span>${match.scoreB}/${match.wicketsB} (${match.oversB} ov)</span>
-        </div>
+      
+      <!-- Replaced by script -->
+`;
+
+    card.style.cursor = 'pointer';
+    card.style.position = 'relative';
+    card.style.overflow = 'hidden';
+
+    let titleColor = m.isFinal ? 'var(--primary-gold)' : '#fff';
+    let teamAColor = match.winnerName === match.teamA ? 'var(--accent-green)' : '#ddd';
+    let teamBColor = match.winnerName === match.teamB ? 'var(--accent-green)' : '#ddd';
+    let fwA = match.winnerName === match.teamA ? '800' : '500';
+    let cwA = match.winnerName === match.teamA ? 'var(--accent-green)' : '#fff';
+    let fwB = match.winnerName === match.teamB ? '800' : '500';
+    let cwB = match.winnerName === match.teamB ? 'var(--accent-green)' : '#fff';
+
+    card.innerHTML = `
+      <div class="playoff-stage-title" style="text-align:center; padding-bottom:8px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px; font-weight:800; color:${titleColor};">
+        ${m.title}
       </div>
-      <div class="match-highlight-note">
-        <strong>Winner: ${m.data.winner}</strong> • ${match.highlight}
+      
+      <div class="match-basic-preview" style="display:flex; justify-content:space-between; align-items:center; font-size:18px; font-weight:700; padding: 10px 0;">
+         <span style="color:${teamAColor}">${match.teamA}</span>
+         <span style="font-size:12px; opacity:0.6; font-weight:normal;">vs</span>
+         <span style="color:${teamBColor}">${match.teamB}</span>
+      </div>
+      
+      <div style="text-align:center; font-size:11px; opacity:0.6; margin-bottom: 8px;">
+        (Click to view scoreboard)
+      </div>
+
+      <div class="match-detailed-scoreboard" style="display: none; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 12px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); margin-top:10px;">
+        
+        <div class="match-team-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <span style="font-weight:${fwA}; font-size: 16px; color:${cwA}">${match.teamA}</span>
+          <div style="text-align: right;">
+             <span style="font-size: 20px; font-weight: 800; font-family: 'Teko', sans-serif; letter-spacing: 1px; color:var(--primary-gold);">${match.scoreA}</span>
+             <span style="font-size: 14px; opacity:0.8;">/${match.wicketsA}</span>
+             <div style="font-size: 10px; opacity: 0.6; margin-top:-4px;">${match.oversA} ov</div>
+          </div>
+        </div>
+        
+        <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 6px 0;"></div>
+        
+        <div class="match-team-row" style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-weight:${fwB}; font-size: 16px; color:${cwB}">${match.teamB}</span>
+          <div style="text-align: right;">
+             <span style="font-size: 20px; font-weight: 800; font-family: 'Teko', sans-serif; letter-spacing: 1px; color:var(--primary-gold);">${match.scoreB}</span>
+             <span style="font-size: 14px; opacity:0.8;">/${match.wicketsB}</span>
+             <div style="font-size: 10px; opacity: 0.6; margin-top:-4px;">${match.oversB} ov</div>
+          </div>
+        </div>
+        
+      </div>
+      
+      <div class="match-highlight-note" style="text-align:center; font-size:12px; background: rgba(0,230,118,0.1); border-radius:4px; padding:6px; color:var(--accent-green);">
+        <strong>🏆 ${m.data.winner} won</strong> 
       </div>
     `;
+    
+    card.addEventListener('click', () => {
+      const sb = card.querySelector('.match-detailed-scoreboard');
+      if (sb.style.display === 'none') {
+        sb.style.display = 'block';
+      } else {
+        sb.style.display = 'none';
+      }
+    });
+
     bracket.appendChild(card);
   });
+
 
   const squadsGrid = document.getElementById('allSquadsGrid');
   squadsGrid.innerHTML = '';

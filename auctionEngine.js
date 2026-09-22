@@ -325,6 +325,33 @@ function simulateSeason(teams) {
   var champion = finalMatch.winnerId === q1Winner.id ? q1Winner : q2Winner;
   var runnerUp = champion.id === q1Winner.id ? q2Winner : q1Winner;
 
+  var allPlayers = [];
+  teamsWithXI.forEach(function(t) {
+    var matchesPlayed = t.played + (top4.includes(t) ? (champion.id === t.id ? 2 : 1) : 0);
+    t.playingXI.forEach(function(p) {
+      var orderBonus = (p.idealBattingPos && p.idealBattingPos.some(function(pos) { return pos <= 3; })) ? 1.3 : 1.0;
+      var avgRuns = Math.pow((p.bat || 10) / 100, 2.5) * 45 * orderBonus;
+      var totalRuns = Math.round(avgRuns * matchesPlayed * (0.85 + Math.random() * 0.3));
+      
+      var bowlBonus = (p.idealBowlingOvers && (p.idealBowlingOvers.includes('1-6') || p.idealBowlingOvers.includes('16-20'))) ? 1.2 : 1.0;
+      var avgWickets = Math.pow((p.bowl || 10) / 100, 2.5) * 1.5 * bowlBonus;
+      var totalWickets = Math.round(avgWickets * matchesPlayed * (0.8 + Math.random() * 0.4));
+      
+      allPlayers.push({
+        name: p.name,
+        team: t.name,
+        runs: totalRuns,
+        wickets: totalWickets,
+        role: p.role
+      });
+    });
+  });
+
+  var sortedByRuns = allPlayers.slice().sort(function(a, b) { return b.runs - a.runs; });
+  var sortedByWickets = allPlayers.slice().sort(function(a, b) { return b.wickets - a.wickets; });
+  var orangeCap = sortedByRuns[0];
+  var purpleCap = sortedByWickets[0];
+
   return {
     standings: teamsWithXI.map(function(t, idx) {
       return {
@@ -341,7 +368,8 @@ function simulateSeason(teams) {
       qualifier2: { match: q2, winner: q2Winner.name },
       grandFinal: { match: finalMatch, winner: champion.name, championId: champion.id, runnerUp: runnerUp.name }
     },
-    champion: { id: champion.id, name: champion.name, owner: champion.owner, isHuman: champion.isHuman, rating: champion.overallRating }
+    champion: { id: champion.id, name: champion.name, owner: champion.owner, isHuman: champion.isHuman, rating: champion.overallRating },
+    awards: { orangeCap: orangeCap, purpleCap: purpleCap }
   };
 }
 
