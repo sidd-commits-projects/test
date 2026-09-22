@@ -2662,41 +2662,41 @@ const PLAYER_TEMPLATES = [
 
   // --- Additional Indian Depth (20 players) ---
   { name: "Abhimanyu Easwaran", country: "IND", role: "Batsman", bat: 75, bowl: 12, ovr: 75, basePrice: 0.5, trait: "Emerging Player (⭐)", idealBattingPos: [1, 2], idealBowlingOvers: [] },
-  { name: "Rajat Patidar", country: "IND", role: "Batsman", bat: 80, bowl: 10, ovr: 80, basePrice: 0.75, trait: "Spin Basher (⭐⭐)", idealBattingPos: [3, 4], idealBowlingOvers: [] },
+  { name: "Devdutt Padikkal V2", country: "IND", role: "Batsman", bat: 80, bowl: 10, ovr: 80, basePrice: 0.75, trait: "Spin Basher (⭐⭐)", idealBattingPos: [3, 4], idealBowlingOvers: [] },
   { name: "Sarfaraz Khan", country: "IND", role: "Batsman", bat: 76, bowl: 15, ovr: 76, basePrice: 0.5, trait: "Sweep Specialist (⭐⭐)", idealBattingPos: [4, 5], idealBowlingOvers: [] },
   { name: "Shahrukh Khan", country: "IND", role: "Batsman", bat: 78, bowl: 25, ovr: 78, basePrice: 1.0, trait: "Finisher (⭐⭐)", idealBattingPos: [5, 6], idealBowlingOvers: [] },
-  { name: "Rahul Tripathi", country: "IND", role: "Batsman", bat: 79, bowl: 12, ovr: 79, basePrice: 1.0, trait: "Intent Merchant (⭐⭐)", idealBattingPos: [3, 4], idealBowlingOvers: [] },
+  { name: "Manish Pandey V2", country: "IND", role: "Batsman", bat: 79, bowl: 12, ovr: 79, basePrice: 1.0, trait: "Intent Merchant (⭐⭐)", idealBattingPos: [3, 4], idealBowlingOvers: [] },
   
   { name: "KS Bharat", country: "IND", role: "Wicketkeeper", bat: 74, bowl: 10, ovr: 74, basePrice: 0.5, trait: "Safe Hands (⭐)", idealBattingPos: [3, 4], idealBowlingOvers: [] },
   { name: "Upendra Yadav", country: "IND", role: "Wicketkeeper", bat: 72, bowl: 10, ovr: 72, basePrice: 0.5, trait: "Emerging Player (⭐)", idealBattingPos: [5, 6], idealBowlingOvers: [] },
   
   { name: "Prasidh Krishna", country: "IND", role: "Fast Bowler", bat: 15, bowl: 81, ovr: 81, basePrice: 1.0, trait: "Hit the Deck (⭐⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["1-6", "7-15"] },
   { name: "Navdeep Saini", country: "IND", role: "Fast Bowler", bat: 20, bowl: 77, ovr: 77, basePrice: 0.75, trait: "Express Pace (⭐⭐)", idealBattingPos: [9, 10], idealBowlingOvers: ["7-15", "16-20"] },
-  { name: "Avesh Khan", country: "IND", role: "Fast Bowler", bat: 15, bowl: 80, ovr: 80, basePrice: 1.0, trait: "Heavy Ball (⭐⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["1-6", "16-20"] },
-  { name: "Chetan Sakariya", country: "IND", role: "Medium Pace Bowler", bat: 22, bowl: 76, ovr: 76, basePrice: 0.75, trait: "Swing & Seam (⭐)", idealBattingPos: [9, 10], idealBowlingOvers: ["1-6"] },
+  { name: "Mohsin Khan", country: "IND", role: "Fast Bowler", bat: 15, bowl: 80, ovr: 80, basePrice: 1.0, trait: "Heavy Ball (⭐⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["1-6", "16-20"] },
+  { name: "T Natarajan V2", country: "IND", role: "Medium Pace Bowler", bat: 22, bowl: 76, ovr: 76, basePrice: 0.75, trait: "Swing & Seam (⭐)", idealBattingPos: [9, 10], idealBowlingOvers: ["1-6"] },
   { name: "Kartik Tyagi", country: "IND", role: "Fast Bowler", bat: 15, bowl: 78, ovr: 78, basePrice: 0.75, trait: "Raw Pace (⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["7-15", "16-20"] },
   
-  { name: "Rahul Chahar", country: "IND", role: "Spinner", bat: 25, bowl: 79, ovr: 79, basePrice: 0.75, trait: "Leggie (⭐⭐)", idealBattingPos: [8, 9], idealBowlingOvers: ["7-15"] },
-  { name: "Mayank Markande", country: "IND", role: "Spinner", bat: 20, bowl: 77, ovr: 77, basePrice: 0.5, trait: "Googly Specialist (⭐)", idealBattingPos: [9, 10], idealBowlingOvers: ["7-15"] },
-  { name: "Shreyas Gopal", country: "IND", role: "Spin Bowling Allrounder", bat: 65, bowl: 75, ovr: 70, basePrice: 0.5, trait: "Jack of All Trades (⭐)", idealBattingPos: [7, 8], idealBowlingOvers: ["7-15"] },
+  { name: "Varun Chakaravarthy V2", country: "IND", role: "Spinner", bat: 25, bowl: 79, ovr: 79, basePrice: 0.75, trait: "Leggie (⭐⭐)", idealBattingPos: [8, 9], idealBowlingOvers: ["7-15"] },
+  { name: "Ravi Bishnoi V2", country: "IND", role: "Spinner", bat: 20, bowl: 77, ovr: 77, basePrice: 0.5, trait: "Googly Specialist (⭐)", idealBattingPos: [9, 10], idealBowlingOvers: ["7-15"] },
+  { name: "Washington Sundar V2", country: "IND", role: "Spin Bowling Allrounder", bat: 65, bowl: 75, ovr: 70, basePrice: 0.5, trait: "Jack of All Trades (⭐)", idealBattingPos: [7, 8], idealBowlingOvers: ["7-15"] },
   
   { name: "Abdul Samad", country: "IND", role: "Fast Bowling Allrounder", bat: 75, bowl: 60, ovr: 68, basePrice: 0.5, trait: "Big Hitter (⭐)", idealBattingPos: [6, 7], idealBowlingOvers: ["7-15"] },
-  { name: "Deepak Hooda", country: "IND", role: "Spin Bowling Allrounder", bat: 77, bowl: 65, ovr: 71, basePrice: 1.0, trait: "Utility Player (⭐)", idealBattingPos: [3, 4], idealBowlingOvers: ["7-15"] },
-  { name: "Krunal Pandya", country: "IND", role: "Spin Bowling Allrounder", bat: 75, bowl: 76, ovr: 75, basePrice: 1.0, trait: "Economical (⭐⭐)", idealBattingPos: [5, 6], idealBowlingOvers: ["7-15"] },
-  { name: "Harshal Patel", country: "IND", role: "Fast Bowling Allrounder", bat: 65, bowl: 81, ovr: 73, basePrice: 1.5, trait: "Death Bowling Specialist (⭐⭐)", idealBattingPos: [8, 9], idealBowlingOvers: ["16-20"] },
+  { name: "Kedar Jadhav", country: "IND", role: "Spin Bowling Allrounder", bat: 77, bowl: 65, ovr: 71, basePrice: 1.0, trait: "Utility Player (⭐)", idealBattingPos: [3, 4], idealBowlingOvers: ["7-15"] },
+  { name: "Vijay Shankar V2", country: "IND", role: "Spin Bowling Allrounder", bat: 75, bowl: 76, ovr: 75, basePrice: 1.0, trait: "Economical (⭐⭐)", idealBattingPos: [5, 6], idealBowlingOvers: ["7-15"] },
+  { name: "Bhuvneshwar Kumar V2", country: "IND", role: "Fast Bowling Allrounder", bat: 65, bowl: 81, ovr: 73, basePrice: 1.5, trait: "Death Bowling Specialist (⭐⭐)", idealBattingPos: [8, 9], idealBowlingOvers: ["16-20"] },
   { name: "Shardul Thakur", country: "IND", role: "Fast Bowling Allrounder", bat: 70, bowl: 78, ovr: 74, basePrice: 1.5, trait: "Golden Arm (⭐⭐)", idealBattingPos: [7, 8], idealBowlingOvers: ["7-15", "16-20"] },
 
   // --- Additional Overseas Depth (10 players) ---
-  { name: "Rilee Rossouw", country: "SA", role: "Batsman", bat: 80, bowl: 10, ovr: 80, basePrice: 1.0, trait: "Power Hitter (⭐⭐)", idealBattingPos: [3, 4], idealBowlingOvers: [] },
-  { name: "Harry Brook", country: "ENG", role: "Batsman", bat: 82, bowl: 10, ovr: 82, basePrice: 1.5, trait: "Dynamic (⭐⭐)", idealBattingPos: [4, 5], idealBowlingOvers: [] },
+  { name: "Colin Munro", country: "SA", role: "Batsman", bat: 80, bowl: 10, ovr: 80, basePrice: 1.0, trait: "Power Hitter (⭐⭐)", idealBattingPos: [3, 4], idealBowlingOvers: [] },
+  { name: "Jonny Bairstow V2", country: "ENG", role: "Batsman", bat: 82, bowl: 10, ovr: 82, basePrice: 1.5, trait: "Dynamic (⭐⭐)", idealBattingPos: [4, 5], idealBowlingOvers: [] },
   { name: "Josh Inglis", country: "AUS", role: "Wicketkeeper", bat: 78, bowl: 10, ovr: 78, basePrice: 0.75, trait: "Innovative (⭐)", idealBattingPos: [3, 4], idealBowlingOvers: [] },
   { name: "Jason Behrendorff", country: "AUS", role: "Fast Bowler", bat: 15, bowl: 79, ovr: 79, basePrice: 1.0, trait: "Powerplay Specialist (⭐⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["1-6"] },
-  { name: "Mark Wood", country: "ENG", role: "Fast Bowler", bat: 20, bowl: 82, ovr: 82, basePrice: 1.5, trait: "Express Pace (⭐⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["7-15", "16-20"] },
-  { name: "Adam Zampa", country: "AUS", role: "Spinner", bat: 25, bowl: 81, ovr: 81, basePrice: 1.0, trait: "Leggie (⭐⭐)", idealBattingPos: [9, 10], idealBowlingOvers: ["7-15"] },
+  { name: "Trent Boult V2", country: "ENG", role: "Fast Bowler", bat: 20, bowl: 82, ovr: 82, basePrice: 1.5, trait: "Express Pace (⭐⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["7-15", "16-20"] },
+  { name: "Adil Rashid", country: "AUS", role: "Spinner", bat: 25, bowl: 81, ovr: 81, basePrice: 1.0, trait: "Leggie (⭐⭐)", idealBattingPos: [9, 10], idealBowlingOvers: ["7-15"] },
   { name: "Akeal Hosein", country: "WI", role: "Spin Bowling Allrounder", bat: 60, bowl: 78, ovr: 69, basePrice: 0.75, trait: "Economical (⭐)", idealBattingPos: [8, 9], idealBowlingOvers: ["1-6", "7-15"] },
-  { name: "Romario Shepherd", country: "WI", role: "Fast Bowling Allrounder", bat: 75, bowl: 74, ovr: 74, basePrice: 1.0, trait: "Finisher (⭐⭐)", idealBattingPos: [6, 7], idealBowlingOvers: ["16-20"] },
+  { name: "Jason Holder V2", country: "WI", role: "Fast Bowling Allrounder", bat: 75, bowl: 74, ovr: 74, basePrice: 1.0, trait: "Finisher (⭐⭐)", idealBattingPos: [6, 7], idealBowlingOvers: ["16-20"] },
   { name: "Dasun Shanaka", country: "SL", role: "Fast Bowling Allrounder", bat: 76, bowl: 70, ovr: 73, basePrice: 0.75, trait: "Captain (⭐)", idealBattingPos: [5, 6], idealBowlingOvers: ["7-15"] },
-  { name: "Naveen-ul-Haq", country: "AFG", role: "Fast Bowler", bat: 20, bowl: 79, ovr: 79, basePrice: 1.0, trait: "Slower Ball Specialist (⭐⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["16-20"] }
+  { name: "Fazalhaq Farooqi", country: "AFG", role: "Fast Bowler", bat: 20, bowl: 79, ovr: 79, basePrice: 1.0, trait: "Slower Ball Specialist (⭐⭐)", idealBattingPos: [10, 11], idealBowlingOvers: ["16-20"] }
 ];
 
 const IPL_TEAMS = [
